@@ -36,7 +36,12 @@ if not st.session_state.authenticated:
             st.rerun()
         else:
             st.error("Mot de passe incorrect ❌")
-    st.stop() # Arrête tout si pas connecté
+    st.stop() 
+
+# --- INITIALISATION MÉMOIRE (LE CORRECTIF EST ICI) ---
+# On initialise la liste AVANT de créer la sidebar pour éviter le crash
+if "messages" not in st.session_state:
+    st.session_state.messages = [{"role": "assistant", "content": "Bienvenue. Je suis sécurisé et prêt. 🔐"}]
 
 # --- STYLE ---
 st.markdown("""
@@ -52,7 +57,6 @@ st.markdown("""
         border-radius: 15px;
         border: 1px solid rgba(255,255,255,0.1);
     }
-    /* Cache le menu GitHub */
     header {visibility: hidden;}
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
@@ -96,7 +100,6 @@ def get_vector_store(documents, _api_key):
         return None
 
 def text_to_speech(text):
-    """Convertit le texte en audio MP3"""
     try:
         tts = gTTS(text=text, lang='fr')
         with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as fp:
@@ -118,7 +121,7 @@ with st.sidebar:
     uploaded_pdf = st.file_uploader("Cours (PDF)", type="pdf")
     uploaded_img = st.file_uploader("Image (JPG)", type=["jpg", "png"])
 
-    # BOUTON EXPORT (Option 2)
+    # BOUTON EXPORT (Maintenant ça marche car 'messages' existe déjà !)
     chat_history = "\n".join([f"{m['role'].upper()}: {m['content']}\n" for m in st.session_state.messages])
     st.download_button("💾 Télécharger la conversation", chat_history, file_name="conversation.txt")
 
@@ -134,9 +137,6 @@ with st.sidebar:
 # --- MAIN ---
 st.title("🧠 UltraBrain Ultimate")
 
-if "messages" not in st.session_state:
-    st.session_state.messages = [{"role": "assistant", "content": "Bienvenue. Je suis sécurisé et prêt. 🔐"}]
-
 vector_db = None
 if uploaded_pdf:
     raw_docs = get_pdf_documents(uploaded_pdf)
@@ -148,7 +148,6 @@ for msg in st.session_state.messages:
     icone = "👤" if msg["role"] == "user" else "🤖"
     with st.chat_message(msg["role"], avatar=icone):
         st.markdown(msg["content"])
-        # Affiche le lecteur audio si c'était un message assistant récent (optionnel, on le fait juste pour le dernier)
 
 if question := st.chat_input("Votre message..."):
     st.session_state.messages.append({"role": "user", "content": question})
@@ -156,7 +155,6 @@ if question := st.chat_input("Votre message..."):
         st.markdown(question)
         if uploaded_img: st.image(uploaded_img, width=200)
 
-    # RAG + Vision Logic
     contexte = ""
     sources = []
     if vector_db and not uploaded_img:
@@ -193,7 +191,6 @@ if question := st.chat_input("Votre message..."):
             placeholder.markdown(full_resp)
             if sources: st.caption(f"📚 Sources: {', '.join(sources)}")
             
-            # --- AUDIO GENERATION (Option 3) ---
             if enable_audio:
                 with st.spinner("🗣️ Génération audio..."):
                     audio_file = text_to_speech(full_resp)
