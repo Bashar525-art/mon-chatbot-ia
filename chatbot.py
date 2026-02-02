@@ -38,8 +38,7 @@ if not st.session_state.authenticated:
             st.error("Mot de passe incorrect ❌")
     st.stop() 
 
-# --- INITIALISATION MÉMOIRE (LE CORRECTIF EST ICI) ---
-# On initialise la liste AVANT de créer la sidebar pour éviter le crash
+# --- INITIALISATION MÉMOIRE (Important : Avant la sidebar) ---
 if "messages" not in st.session_state:
     st.session_state.messages = [{"role": "assistant", "content": "Bienvenue. Je suis sécurisé et prêt. 🔐"}]
 
@@ -57,7 +56,10 @@ st.markdown("""
         border-radius: 15px;
         border: 1px solid rgba(255,255,255,0.1);
     }
-    header {visibility: hidden;}
+    
+    /* ON LAISSE LE HEADER VISIBLE POUR LE MENU MOBILE */
+    /* header {visibility: hidden;} */
+    
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
     .stDeployButton {display:none;}
@@ -108,7 +110,7 @@ def text_to_speech(text):
     except Exception as e:
         return None
 
-# --- SIDEBAR (Contrôles) ---
+# --- SIDEBAR (Barre Latérale) ---
 with st.sidebar:
     st.image("https://cdn-icons-png.flaticon.com/512/2583/2583166.png", width=80)
     st.title("🎛️ Commandes")
@@ -121,7 +123,7 @@ with st.sidebar:
     uploaded_pdf = st.file_uploader("Cours (PDF)", type="pdf")
     uploaded_img = st.file_uploader("Image (JPG)", type=["jpg", "png"])
 
-    # BOUTON EXPORT (Maintenant ça marche car 'messages' existe déjà !)
+    # BOUTON EXPORT
     chat_history = "\n".join([f"{m['role'].upper()}: {m['content']}\n" for m in st.session_state.messages])
     st.download_button("💾 Télécharger la conversation", chat_history, file_name="conversation.txt")
 
