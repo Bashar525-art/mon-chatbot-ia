@@ -37,10 +37,9 @@ if not st.session_state.authenticated:
 if "messages" not in st.session_state:
     st.session_state.messages = [{"role": "assistant", "content": "Salut ! Je suis là. On parle de quoi ?"}]
 
-# --- STYLE CSS (CORRECTION POSITION MICRO) ---
+# --- STYLE CSS (MICRO EN HAUT A DROITE) ---
 st.markdown("""
 <style>
-    /* Titre Stylé */
     h1 {
         background: -webkit-linear-gradient(45deg, #667eea, #764ba2);
         -webkit-background-clip: text;
@@ -52,38 +51,29 @@ st.markdown("""
     .stChatMessage { border-radius: 15px; border: 1px solid rgba(255,255,255,0.1); }
     #MainMenu {visibility: hidden;} footer {visibility: hidden;} .stDeployButton {display:none;}
     
-    /* 🎤 LE FIX ULTIME DU MICRO */
+    /* 🎤 LE FIX DU MICRO : On le place en HAUT à DROITE (Zone sécurisée) */
     [data-testid="stAudioInput"] {
         position: fixed;
-        bottom: 120px;       /* BEAUCOUP plus haut pour ne pas toucher le clavier */
-        left: 20px;          /* À gauche */
-        z-index: 9999;       /* Au-dessus de tout */
+        top: 70px;           /* Tout en haut (sous la barre de titre) */
+        right: 15px;         /* Collé à droite */
+        z-index: 9999;
         width: fit-content !important;
     }
     
-    /* On rend le widget transparent pour ne garder que le bouton */
     [data-testid="stAudioInput"] > div {
         background-color: transparent !important;
         border: none !important;
     }
     
-    /* Le bouton rouge rond */
+    /* Bouton Rouge Style Talkie-Walkie */
     [data-testid="stAudioInput"] button {
         background-color: #FF4B4B !important;
         color: white !important;
         border-radius: 50% !important;
-        width: 60px !important;  /* Plus gros pour le doigt */
-        height: 60px !important;
-        box-shadow: 0px 4px 15px rgba(0,0,0,0.5); /* Ombre portée pour le relief */
+        width: 50px !important;
+        height: 50px !important;
+        box-shadow: 0px 4px 10px rgba(0,0,0,0.4);
         border: 2px solid white !important;
-    }
-    
-    /* Ajustement spécial Mobile pour remonter encore si besoin */
-    @media (max-width: 640px) {
-        [data-testid="stAudioInput"] {
-            bottom: 130px; /* Encore plus haut sur mobile */
-            left: 15px;
-        }
     }
 </style>
 """, unsafe_allow_html=True)
@@ -169,7 +159,6 @@ for msg in st.session_state.messages:
         st.markdown(msg["content"])
 
 # --- INPUTS ---
-# Le micro sera placé via le CSS
 audio_val = st.audio_input("🎙️")
 text_val = st.chat_input("Message...")
 
