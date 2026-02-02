@@ -1,0 +1,6 @@
+streamlit
+mistralai
+pypdf
+langchain-mistralai
+langchain-community
+faiss-cpu
