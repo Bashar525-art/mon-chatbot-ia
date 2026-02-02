@@ -37,9 +37,10 @@ if not st.session_state.authenticated:
 if "messages" not in st.session_state:
     st.session_state.messages = [{"role": "assistant", "content": "Salut ! Je suis là. On parle de quoi ?"}]
 
-# --- STYLE CSS (MICRO CORRIGÉ : GAUCHE) ---
+# --- STYLE CSS (CORRECTION POSITION MICRO) ---
 st.markdown("""
 <style>
+    /* Titre Stylé */
     h1 {
         background: -webkit-linear-gradient(45deg, #667eea, #764ba2);
         -webkit-background-clip: text;
@@ -51,31 +52,38 @@ st.markdown("""
     .stChatMessage { border-radius: 15px; border: 1px solid rgba(255,255,255,0.1); }
     #MainMenu {visibility: hidden;} footer {visibility: hidden;} .stDeployButton {display:none;}
     
-    /* 🎤 LE FIX DU MICRO : On le met à GAUCHE pour ne pas gêner le bouton Envoyer */
+    /* 🎤 LE FIX ULTIME DU MICRO */
     [data-testid="stAudioInput"] {
         position: fixed;
-        bottom: 80px;        /* Un peu plus haut pour être sûr */
-        left: 20px;          /* À GAUCHE maintenant ! */
-        z-index: 1000;
-        background-color: transparent;
+        bottom: 120px;       /* BEAUCOUP plus haut pour ne pas toucher le clavier */
+        left: 20px;          /* À gauche */
+        z-index: 9999;       /* Au-dessus de tout */
         width: fit-content !important;
     }
     
-    /* Design de la bulle */
+    /* On rend le widget transparent pour ne garder que le bouton */
     [data-testid="stAudioInput"] > div {
         background-color: transparent !important;
         border: none !important;
     }
     
-    /* Le bouton lui-même */
+    /* Le bouton rouge rond */
     [data-testid="stAudioInput"] button {
         background-color: #FF4B4B !important;
         color: white !important;
         border-radius: 50% !important;
-        width: 50px !important;
-        height: 50px !important;
-        box-shadow: 2px 2px 10px rgba(0,0,0,0.3);
+        width: 60px !important;  /* Plus gros pour le doigt */
+        height: 60px !important;
+        box-shadow: 0px 4px 15px rgba(0,0,0,0.5); /* Ombre portée pour le relief */
         border: 2px solid white !important;
+    }
+    
+    /* Ajustement spécial Mobile pour remonter encore si besoin */
+    @media (max-width: 640px) {
+        [data-testid="stAudioInput"] {
+            bottom: 130px; /* Encore plus haut sur mobile */
+            left: 15px;
+        }
     }
 </style>
 """, unsafe_allow_html=True)
@@ -161,7 +169,7 @@ for msg in st.session_state.messages:
         st.markdown(msg["content"])
 
 # --- INPUTS ---
-# Le micro sera placé via le CSS en bas à GAUCHE
+# Le micro sera placé via le CSS
 audio_val = st.audio_input("🎙️")
 text_val = st.chat_input("Message...")
 
