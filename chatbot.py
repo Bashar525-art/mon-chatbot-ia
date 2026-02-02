@@ -22,8 +22,10 @@ model = "pixtral-12b-2409"
 st.set_page_config(page_title="UltraBrain AI", page_icon="👁️", layout="wide")
 
 # --- STYLE ---
+# --- STYLE (Design Pro + Cacher le menu) ---
 st.markdown("""
 <style>
+    /* Titre coloré */
     h1 {
         background: -webkit-linear-gradient(45deg, #12c2e9, #c471ed, #f64f59);
         -webkit-background-clip: text;
@@ -31,10 +33,18 @@ st.markdown("""
         font-weight: bold;
         text-align: center;
     }
+    
+    /* Bulles de chat arrondies */
     .stChatMessage {
         border-radius: 15px;
         border: 1px solid rgba(255,255,255,0.1);
     }
+
+    
+    header {visibility: hidden;}
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+    .stDeployButton {display:none;}
 </style>
 """, unsafe_allow_html=True)
 
@@ -208,3 +218,4 @@ if question := st.chat_input("Pose une question ou envoie une image..."):
             
         except Exception as e:
             st.error(f"Erreur : {e}")
+
