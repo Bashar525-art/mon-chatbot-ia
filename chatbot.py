@@ -35,26 +35,44 @@ if not st.session_state.authenticated:
 
 # --- INITIALISATION ---
 if "messages" not in st.session_state:
-    st.session_state.messages = [{"role": "assistant", "content": "Salut ! Je suis ton assistant polyvalent. Je vois, j'entends et je sais tout (ou presque). On parle de quoi ?"}]
+    st.session_state.messages = [{"role": "assistant", "content": "Salut ! Je suis là. On parle de quoi ?"}]
 
-# --- STYLE CSS (Interface épurée) ---
+# --- STYLE CSS (CORRECTION MICRO) ---
 st.markdown("""
 <style>
-    /* Titre discret et moderne */
     h1 {
         background: -webkit-linear-gradient(45deg, #667eea, #764ba2);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
         font-weight: bold;
         text-align: center;
-        font-size: 2.5rem;
+        font-size: 2rem;
     }
     .stChatMessage { border-radius: 15px; border: 1px solid rgba(255,255,255,0.1); }
-    /* Cache les menus techniques */
     #MainMenu {visibility: hidden;} footer {visibility: hidden;} .stDeployButton {display:none;}
     
-    /* Rapproche le micro du bas (Astuce visuelle) */
-    .stAudioInput { position: fixed; bottom: 80px; z-index: 99; width: 100%; max-width: 800px; left: 50%; transform: translateX(-50%); }
+    /* 🎤 LE FIX DU MICRO : On le transforme en bouton flottant à droite */
+    [data-testid="stAudioInput"] {
+        position: fixed;
+        bottom: 70px;        /* Juste au-dessus de la barre de texte */
+        right: 15px;         /* Collé à droite */
+        width: 50px !important; /* Petit */
+        height: 50px !important;
+        z-index: 1000;
+        background-color: transparent;
+    }
+    /* On cache le fond gris moche du widget */
+    [data-testid="stAudioInput"] > div {
+        background-color: transparent !important;
+        border: none !important;
+    }
+    /* On rend l'icône plus visible */
+    [data-testid="stAudioInput"] button {
+        background-color: #FF4B4B !important; /* Rouge Streamlit */
+        color: white !important;
+        border-radius: 50% !important;
+        box-shadow: 0px 4px 10px rgba(0,0,0,0.3);
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -109,103 +127,77 @@ def transcribe_audio(audio_bytes):
             return r.recognize_google(audio_data, language="fr-FR")
     except: return None
 
-# --- SIDEBAR (Juste l'essentiel) ---
+# --- SIDEBAR (Épurée) ---
 with st.sidebar:
-    st.header("📂 Fichiers & Outils")
-    
-    uploaded_pdf = st.file_uploader("Ajouter un PDF (Cours, Doc...)", type="pdf")
-    uploaded_img = st.file_uploader("Ajouter une Image", type=["jpg", "png"])
-    
+    st.header("🧰 Outils")
+    uploaded_pdf = st.file_uploader("📄 PDF", type="pdf")
+    uploaded_img = st.file_uploader("🖼️ Image", type=["jpg", "png"])
     st.divider()
-    enable_web = st.toggle("🌍 Recherche Internet", value=False)
-    enable_audio_out = st.toggle("🔊 Lire les réponses", value=False)
-    
+    enable_web = st.toggle("🌍 Internet", value=False)
+    enable_audio_out = st.toggle("🔊 Audio", value=False)
     st.divider()
-    if st.button("🗑️ Nouvelle conversation", type="primary"):
+    if st.button("🗑️ Reset", type="primary"):
         st.session_state.messages = []
         if os.path.exists(INDEX_FOLDER): shutil.rmtree(INDEX_FOLDER)
         st.rerun()
-    
-    if st.button("💾 Télécharger l'historique"):
-        chat_str = "\n".join([f"{m['role']}: {m['content']}" for m in st.session_state.messages])
-        st.download_button("Confirmer téléchargement", chat_str, "chat.txt")
 
 # --- MAIN ---
-st.title("🧠 UltraBrain AI")
+st.title("🧠 UltraBrain")
 
 vector_db = None
 if uploaded_pdf:
     raw = get_pdf_documents(uploaded_pdf)
     if raw:
         vector_db = get_vector_store(raw, api_key)
-        if vector_db: st.toast("Je mémorise le document...", icon="🧠")
+        if vector_db: st.toast("PDF Mémorisé !", icon="🧠")
 
-# Affichage des messages
+# Affichage Messages
 for msg in st.session_state.messages:
     with st.chat_message(msg["role"], avatar="👤" if msg["role"]=="user" else "🤖"):
         st.markdown(msg["content"])
 
-# --- ZONES DE SAISIE (Audio + Texte) ---
-
-# On place le micro juste avant la zone de texte
-# Note : Streamlit fixe la chat_input en bas. Le micro sera juste au-dessus.
-audio_val = st.audio_input("🎙️") 
-text_val = st.chat_input("Écris ton message ici...")
+# --- INPUTS ---
+# Le micro sera placé via le CSS, le texte reste en bas
+audio_val = st.audio_input("🎙️")
+text_val = st.chat_input("Message...")
 
 final_question = None
 
-# Priorité : Si on parle, ça prend le dessus
 if audio_val:
-    with st.spinner("🎧 J'écoute..."):
+    with st.spinner("🎧 Analyse..."):
         transcribed = transcribe_audio(audio_val)
         if transcribed: final_question = transcribed
 elif text_val:
     final_question = text_val
 
-# --- TRAITEMENT ---
+# --- LOGIQUE ---
 if final_question:
-    # 1. Affiche le message utilisateur
     st.session_state.messages.append({"role": "user", "content": final_question})
     with st.chat_message("user", avatar="👤"):
         st.markdown(final_question)
         if uploaded_img: st.image(uploaded_img, width=200)
 
-    # 2. Récupère le contexte (PDF + Web)
     context_str = ""
     sources = []
     
-    # PDF RAG
     if vector_db and not uploaded_img:
         docs = vector_db.similarity_search(final_question, k=3)
-        context_str += "\nINFORMATION PDF :\n" + "\n".join([d.page_content for d in docs])
+        context_str += "\nPDF:\n" + "\n".join([d.page_content for d in docs])
         sources = list(set([f"Page {d.metadata['page']}" for d in docs]))
 
-    # Web Search
     if enable_web:
-        web_res = search_web(final_question)
-        context_str += f"\nINFORMATION WEB :\n{web_res}"
+        context_str += f"\nWEB:\n{search_web(final_question)}"
 
-    # 3. Le Prompt "Generalist" (Proche de l'humain)
-    base_instruction = """
-    Tu es une IA généraliste, intelligente, empathique et extrêmement compétente. 
-    Tu n'as pas de rôle fixe : tu t'adaptes à la demande (codeur, prof, ami, expert...).
-    
-    RÈGLES :
-    1. Si on te pose une question de maths/science, utilise le format LaTeX ($x^2$).
-    2. Si on te donne un PDF, utilise-le en priorité.
-    3. Si on te donne une image, analyse-la.
-    4. Sois naturel, direct et utile.
-    """
+    base_instr = """Tu es une IA généraliste, amicale et experte. 
+    Adapte-toi au ton de l'utilisateur. Utilise LaTeX ($x^2$) pour les maths."""
     
     if uploaded_img:
-        sys_prompt = f"Tu as la vision. Analyse l'image fournie. {base_instruction}"
+        sys_prompt = f"Vision active. Analyse l'image. {base_instr}"
         base64_img = encode_image(uploaded_img)
         msgs_api = [{"role": "user", "content": [{"type": "text", "text": final_question}, {"type": "image_url", "image_url": f"data:image/jpeg;base64,{base64_img}"}]}]
     else:
-        full_prompt = f"{base_instruction}\nCONTEXTE UTILE (Si vide, ignore) :\n{context_str}"
-        msgs_api = [{"role": "system", "content": full_prompt}] + [m for m in st.session_state.messages if m["role"]!="system"]
+        msgs_api = [{"role": "system", "content": f"{base_instr} Contexte: {context_str}"}] + [m for m in st.session_state.messages if m["role"]!="system"]
 
-    # 4. Génération Mistral
     client = Mistral(api_key=api_key)
     with st.chat_message("assistant", avatar="🤖"):
         placeholder = st.empty()
@@ -219,16 +211,11 @@ if final_question:
                     placeholder.markdown(full_resp + "▌")
             
             placeholder.markdown(full_resp)
-            
-            # Affichage discret des sources
             if sources: st.caption(f"📚 {', '.join(sources)}")
-            
-            # Lecture audio
             if enable_audio_out:
                 audio_file = text_to_speech(full_resp)
                 if audio_file: st.audio(audio_file)
             
             st.session_state.messages.append({"role": "assistant", "content": full_resp})
-            
         except Exception as e:
-            st.error(f"Oups : {e}")
+            st.error(f"Erreur : {e}")
