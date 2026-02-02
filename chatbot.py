@@ -8,14 +8,20 @@ from langchain_mistralai import MistralAIEmbeddings
 from langchain_community.vectorstores import FAISS
 
 # --- CONFIGURATION ---
+# On récupère la clé depuis le coffre-fort (Fonctionne sur PC et sur le Cloud)
+if "MISTRAL_API_KEY" in st.secrets:
+    api_key = st.secrets["MISTRAL_API_KEY"]
+else:
+    # Fallback pour éviter le crash si le secret n'est pas encore configuré
+    st.error("Clé API introuvable. Configurez .streamlit/secrets.toml")
+    st.stop()
 
-api_key = st.secrets["MISTRAL_API_KEY"]
 model = "open-mistral-nemo" 
 
 # Config de la page
 st.set_page_config(page_title="UltraBrain AI", page_icon="🧠", layout="wide")
 
-# --- LE STYLE CORRIGÉ (Dark Mode Friendly) ---
+# --- LE STYLE (Design Dark Mode) ---
 st.markdown("""
 <style>
     /* Titre principal avec un dégradé stylé */
@@ -26,22 +32,17 @@ st.markdown("""
         -webkit-text-fill-color: transparent;
         font-weight: bold;
     }
-    
-    /* Sous-titre centré */
     .stMarkdown p {
         text-align: center;
     }
-
-    /* On ne force plus le fond blanc ! On laisse le thème sombre par défaut.
-       On ajoute juste une petite bordure discrète */
     .stChatMessage {
-        border: 1px solid rgba(255, 255, 255, 0.1); /* Bordure très fine */
+        border: 1px solid rgba(255, 255, 255, 0.1);
         border-radius: 15px;
     }
 </style>
 """, unsafe_allow_html=True)
 
-# Dossier de sauvegarde
+# Dossier de sauvegarde temporaire
 INDEX_FOLDER = "faiss_index_mistral"
 
 # --- FONCTIONS TECHNIQUES ---
@@ -58,12 +59,15 @@ def get_pdf_text(pdf_file):
         return None
 
 def get_vector_store(text_content, _api_key):
+    # On met _api_key pour éviter que Streamlit ne recalcule tout si la clé ne change pas
     embeddings = MistralAIEmbeddings(mistral_api_key=_api_key)
+    
     if os.path.exists(INDEX_FOLDER):
         try:
             return FAISS.load_local(INDEX_FOLDER, embeddings, allow_dangerous_deserialization=True)
         except:
             pass
+            
     try:
         text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
         chunks = text_splitter.split_text(text_content)
@@ -80,12 +84,12 @@ with st.sidebar:
     st.title("⚙️ Contrôle")
     
     mode = st.selectbox(
-        "🧠 Mode Expert :",
-        ["🎓 Professeur", "⚖️ Juriste", "💼 Business", "💻 Développeur", "📝 Traducteur"]
+        "🧠 Personnalité de l'IA :",
+        ["🎓 Professeur Pédagogue", "⚖️ Juriste Expert", "💼 Consultant Business", "💻 Développeur Senior", "📝 Traducteur", "🍳 Chef Cuisinier"]
     )
     
     st.markdown("---")
-    uploaded_file = st.file_uploader("📂 PDF", type="pdf")
+    uploaded_file = st.file_uploader("📂 Charge un PDF (Optionnel)", type="pdf")
     
     if st.button("🗑️ Reset Mémoire", type="primary"):
         st.session_state.messages = []
@@ -95,12 +99,12 @@ with st.sidebar:
 
 # --- HEADER ---
 st.title("🧠 UltraBrain AI")
-st.caption("Ton assistant intelligent polyvalent")
+st.caption("Ton assistant intelligent : Pose n'importe quelle question (Cours, Recettes, Code...)")
 
 # --- INITIALISATION ---
 if "messages" not in st.session_state:
     st.session_state.messages = []
-    st.session_state.messages.append({"role": "assistant", "content": "Salut ! Je suis prêt. Envoie un PDF ou pose une question."})
+    st.session_state.messages.append({"role": "assistant", "content": "Salut ! Je suis prêt. Envoie un PDF pour travailler ou pose juste une question."})
 
 vector_db = None
 if uploaded_file:
@@ -108,41 +112,59 @@ if uploaded_file:
     if raw_text:
         vector_db = get_vector_store(raw_text, api_key)
         if vector_db:
-            st.toast("✅ Cerveau mis à jour !", icon="🧠")
+            st.toast("✅ Document lu et mémorisé !", icon="🧠")
 
 # --- AFFICHAGE DU CHAT ---
 for msg in st.session_state.messages:
     icone = "👤" if msg["role"] == "user" else "🤖"
     with st.chat_message(msg["role"], avatar=icone):
-        # Ici, on n'a plus besoin de forcer le style, Streamlit gère le texte blanc auto
         st.markdown(msg["content"])
 
-# --- INPUT ---
+# --- INPUT UTILISATEUR & LOGIQUE IA ---
 if question := st.chat_input("Message..."):
     st.session_state.messages.append({"role": "user", "content": question})
     with st.chat_message("user", avatar="👤"):
         st.markdown(question)
 
+    # 1. Recherche dans le PDF (si dispo)
     contexte = ""
     if vector_db:
         docs = vector_db.similarity_search(question, k=4)
         contexte = "\n".join([d.page_content for d in docs])
 
-    # Gestion des rôles simplifiée
+    # 2. Définition du Rôle (Prompt Système)
     if "Professeur" in mode:
-        sys = "Tu es un prof pédagogue. Explique clairement."
+        role_prompt = "Tu es un prof pédagogue. Explique clairement."
     elif "Juriste" in mode:
-        sys = "Tu es un juriste formel et précis."
+        role_prompt = "Tu es un juriste formel. Cite les textes."
     elif "Développeur" in mode:
-        sys = "Tu es un codeur expert. Donne des exemples."
+        role_prompt = "Tu es un codeur expert. Donne des exemples de code."
+    elif "Cuisinier" in mode:
+        role_prompt = "Tu es un chef étoilé. Donne des recettes précises et gourmandes."
     else:
-        sys = "Tu es un assistant utile."
+        role_prompt = "Tu es un assistant polyvalent et utile."
 
+    # 3. Le Prompt Hybride (Le secret pour qu'il sache tout faire)
     if contexte:
-        sys += f"\nUtilise ce contexte pour répondre : {contexte}"
+        system_prompt = f"""{role_prompt}
+        
+        Voici des informations contextuelles issues du document fourni par l'utilisateur :
+        ---
+        {contexte}
+        ---
+        CONSIGNE IMPORTANTE : 
+        1. Utilise le contexte ci-dessus en priorité pour répondre à la question.
+        2. SI la réponse ne se trouve pas dans le contexte (ou si la question est générale comme "Donne-moi une recette" ou "Qui est Napoléon"), IGNORE le contexte et utilise tes propres connaissances générales.
+        Ne dis jamais "je ne trouve pas l'info", réponds simplement à la question.
+        """
+    else:
+        # Pas de PDF, liberté totale
+        system_prompt = f"{role_prompt} (Réponds avec tes vastes connaissances générales)."
 
+    # 4. Appel à Mistral
     client = Mistral(api_key=api_key)
-    msgs = [{"role": "system", "content": sys}]
+    msgs = [{"role": "system", "content": system_prompt}]
+    # On ajoute l'historique de la conversation
     msgs.extend([m for m in st.session_state.messages if m["role"] != "system"])
 
     with st.chat_message("assistant", avatar="🤖"):
@@ -158,4 +180,4 @@ if question := st.chat_input("Message..."):
             placeholder.markdown(full_resp)
             st.session_state.messages.append({"role": "assistant", "content": full_resp})
         except Exception as e:
-            st.error(f"Erreur : {e}")
+            st.error(f"Une erreur est survenue : {e}")
