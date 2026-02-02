@@ -13,11 +13,11 @@ from langchain_core.documents import Document
 from gtts import gTTS
 from duckduckgo_search import DDGS
 
-# --- CONFIGURATION & SÉCURITÉ ---
-st.set_page_config(page_title="UltraBrain GOD MODE", page_icon="⚡", layout="wide")
+# --- CONFIGURATION ---
+st.set_page_config(page_title="UltraBrain AI", page_icon="🧠", layout="wide")
 
 if "MISTRAL_API_KEY" not in st.secrets or "APP_PASSWORD" not in st.secrets:
-    st.error("⚠️ Secrets manquants (MISTRAL_API_KEY ou APP_PASSWORD).")
+    st.error("⚠️ Secrets manquants. Vérifiez .streamlit/secrets.toml")
     st.stop()
 
 api_key = st.secrets["MISTRAL_API_KEY"]
@@ -27,7 +27,7 @@ model = "pixtral-12b-2409"
 # --- LOGIN ---
 if "authenticated" not in st.session_state: st.session_state.authenticated = False
 if not st.session_state.authenticated:
-    st.markdown("<h1 style='text-align:center;'>⚡ GOD MODE ACCESS</h1>", unsafe_allow_html=True)
+    st.markdown("<h1 style='text-align:center;'>🔒 Accès Privé</h1>", unsafe_allow_html=True)
     if st.button("Entrer") or st.text_input("Mot de passe", type="password") == correct_password:
         st.session_state.authenticated = True
         st.rerun()
@@ -35,14 +35,26 @@ if not st.session_state.authenticated:
 
 # --- INITIALISATION ---
 if "messages" not in st.session_state:
-    st.session_state.messages = [{"role": "assistant", "content": "Système en ligne. Internet ✅ Vision ✅ Audio ✅"}]
+    st.session_state.messages = [{"role": "assistant", "content": "Salut ! Je suis ton assistant polyvalent. Je vois, j'entends et je sais tout (ou presque). On parle de quoi ?"}]
 
-# --- STYLE CSS ---
+# --- STYLE CSS (Interface épurée) ---
 st.markdown("""
 <style>
-    h1 { background: -webkit-linear-gradient(45deg, #FFD700, #FF8C00); -webkit-background-clip: text; -webkit-text-fill-color: transparent; text-align: center; }
+    /* Titre discret et moderne */
+    h1 {
+        background: -webkit-linear-gradient(45deg, #667eea, #764ba2);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        font-weight: bold;
+        text-align: center;
+        font-size: 2.5rem;
+    }
     .stChatMessage { border-radius: 15px; border: 1px solid rgba(255,255,255,0.1); }
+    /* Cache les menus techniques */
     #MainMenu {visibility: hidden;} footer {visibility: hidden;} .stDeployButton {display:none;}
+    
+    /* Rapproche le micro du bas (Astuce visuelle) */
+    .stAudioInput { position: fixed; bottom: 80px; z-index: 99; width: 100%; max-width: 800px; left: 50%; transform: translateX(-50%); }
 </style>
 """, unsafe_allow_html=True)
 
@@ -92,113 +104,108 @@ def search_web(query):
 def transcribe_audio(audio_bytes):
     r = sr.Recognizer()
     try:
-        # Streamlit audio input returns a file-like object (WAV)
         with sr.AudioFile(audio_bytes) as source:
             audio_data = r.record(source)
-            text = r.recognize_google(audio_data, language="fr-FR")
-            return text
-    except Exception as e:
-        return None
+            return r.recognize_google(audio_data, language="fr-FR")
+    except: return None
 
-# --- SIDEBAR ---
+# --- SIDEBAR (Juste l'essentiel) ---
 with st.sidebar:
-    st.title("🎛️ Commandes")
-    mode = st.selectbox("Mode :", ["🎓 Professeur", "⚖️ Juriste", "💻 Codeur", "🍳 Cuisinier", "👁️ Vision"])
+    st.header("📂 Fichiers & Outils")
+    
+    uploaded_pdf = st.file_uploader("Ajouter un PDF (Cours, Doc...)", type="pdf")
+    uploaded_img = st.file_uploader("Ajouter une Image", type=["jpg", "png"])
     
     st.divider()
-    enable_web = st.toggle("🌍 Accès Internet", value=False)
+    enable_web = st.toggle("🌍 Recherche Internet", value=False)
     enable_audio_out = st.toggle("🔊 Lire les réponses", value=False)
     
     st.divider()
-    uploaded_pdf = st.file_uploader("Cours (PDF)", type="pdf")
-    uploaded_img = st.file_uploader("Image (JPG)", type=["jpg", "png"])
-    
-    st.divider()
-    if st.button("📝 GÉNÉRER UN QUIZ"):
-        st.session_state.messages.append({"role": "user", "content": "Génère un Quiz QCM de 5 questions sur le document (ou connaissances générales) pour me tester. Affiche la correction après."})
-        st.rerun()
-
-    if st.button("💾 Sauvegarder Chat"):
-        chat_str = "\n".join([f"{m['role']}: {m['content']}" for m in st.session_state.messages])
-        st.download_button("Télécharger", chat_str, "chat.txt")
-        
-    if st.button("🗑️ Reset"):
+    if st.button("🗑️ Nouvelle conversation", type="primary"):
         st.session_state.messages = []
         if os.path.exists(INDEX_FOLDER): shutil.rmtree(INDEX_FOLDER)
         st.rerun()
+    
+    if st.button("💾 Télécharger l'historique"):
+        chat_str = "\n".join([f"{m['role']}: {m['content']}" for m in st.session_state.messages])
+        st.download_button("Confirmer téléchargement", chat_str, "chat.txt")
 
 # --- MAIN ---
-st.title("⚡ UltraBrain God Mode")
+st.title("🧠 UltraBrain AI")
 
 vector_db = None
 if uploaded_pdf:
     raw = get_pdf_documents(uploaded_pdf)
     if raw:
         vector_db = get_vector_store(raw, api_key)
-        if vector_db: st.toast("Mémoire PDF active !", icon="🧠")
+        if vector_db: st.toast("Je mémorise le document...", icon="🧠")
 
-# Affichage Chat
+# Affichage des messages
 for msg in st.session_state.messages:
     with st.chat_message(msg["role"], avatar="👤" if msg["role"]=="user" else "🤖"):
         st.markdown(msg["content"])
 
-# --- INPUT (MICROPHONE OU CLAVIER) ---
-input_text = st.chat_input("Message...")
-input_audio = st.audio_input("🎙️ Parler") # Nouveauté Streamlit 1.40
+# --- ZONES DE SAISIE (Audio + Texte) ---
+
+# On place le micro juste avant la zone de texte
+# Note : Streamlit fixe la chat_input en bas. Le micro sera juste au-dessus.
+audio_val = st.audio_input("🎙️") 
+text_val = st.chat_input("Écris ton message ici...")
 
 final_question = None
 
-# Priorité : Audio > Texte
-if input_audio:
-    with st.spinner("🎧 Transcription..."):
-        transcription = transcribe_audio(input_audio)
-        if transcription:
-            final_question = transcription
-        else:
-            st.error("Je n'ai pas compris l'audio.")
-elif input_text:
-    final_question = input_text
+# Priorité : Si on parle, ça prend le dessus
+if audio_val:
+    with st.spinner("🎧 J'écoute..."):
+        transcribed = transcribe_audio(audio_val)
+        if transcribed: final_question = transcribed
+elif text_val:
+    final_question = text_val
 
 # --- TRAITEMENT ---
 if final_question:
-    # On ajoute la question à l'historique
+    # 1. Affiche le message utilisateur
     st.session_state.messages.append({"role": "user", "content": final_question})
     with st.chat_message("user", avatar="👤"):
         st.markdown(final_question)
         if uploaded_img: st.image(uploaded_img, width=200)
 
-    # 1. RAG (PDF)
-    contexte_pdf = ""
+    # 2. Récupère le contexte (PDF + Web)
+    context_str = ""
     sources = []
+    
+    # PDF RAG
     if vector_db and not uploaded_img:
         docs = vector_db.similarity_search(final_question, k=3)
-        contexte_pdf = "\n".join([d.page_content for d in docs])
+        context_str += "\nINFORMATION PDF :\n" + "\n".join([d.page_content for d in docs])
         sources = list(set([f"Page {d.metadata['page']}" for d in docs]))
 
-    # 2. WEB SEARCH (Internet)
-    contexte_web = ""
+    # Web Search
     if enable_web:
-        with st.status("🌍 Recherche Internet...", expanded=False):
-            contexte_web = search_web(final_question)
-            st.write(contexte_web)
+        web_res = search_web(final_question)
+        context_str += f"\nINFORMATION WEB :\n{web_res}"
 
-    # 3. PROMPT CONSTRUCTION
-    latex_instr = "FORMAT MATHS: Utilise LaTeX ($x^2$). Sois pédagogue."
+    # 3. Le Prompt "Generalist" (Proche de l'humain)
+    base_instruction = """
+    Tu es une IA généraliste, intelligente, empathique et extrêmement compétente. 
+    Tu n'as pas de rôle fixe : tu t'adaptes à la demande (codeur, prof, ami, expert...).
+    
+    RÈGLES :
+    1. Si on te pose une question de maths/science, utilise le format LaTeX ($x^2$).
+    2. Si on te donne un PDF, utilise-le en priorité.
+    3. Si on te donne une image, analyse-la.
+    4. Sois naturel, direct et utile.
+    """
     
     if uploaded_img:
-        sys_prompt = f"Tu as la vision. Analyse l'image. {latex_instr}"
+        sys_prompt = f"Tu as la vision. Analyse l'image fournie. {base_instruction}"
         base64_img = encode_image(uploaded_img)
         msgs_api = [{"role": "user", "content": [{"type": "text", "text": final_question}, {"type": "image_url", "image_url": f"data:image/jpeg;base64,{base64_img}"}]}]
     else:
-        # Fusion des cerveaux (PDF + Web + Général)
-        full_context = ""
-        if contexte_pdf: full_context += f"\nSOURCE PDF:\n{contexte_pdf}"
-        if contexte_web: full_context += f"\nSOURCE INTERNET:\n{contexte_web}"
-        
-        sys_prompt = f"Tu es {mode}. {latex_instr}. Utilise ces infos si pertinentes: {full_context}"
-        msgs_api = [{"role": "system", "content": sys_prompt}] + [m for m in st.session_state.messages if m["role"]!="system"]
+        full_prompt = f"{base_instruction}\nCONTEXTE UTILE (Si vide, ignore) :\n{context_str}"
+        msgs_api = [{"role": "system", "content": full_prompt}] + [m for m in st.session_state.messages if m["role"]!="system"]
 
-    # 4. GENERATION
+    # 4. Génération Mistral
     client = Mistral(api_key=api_key)
     with st.chat_message("assistant", avatar="🤖"):
         placeholder = st.empty()
@@ -213,11 +220,10 @@ if final_question:
             
             placeholder.markdown(full_resp)
             
-            # Affichage des métadonnées
-            if sources: st.caption(f"📚 Sources PDF : {', '.join(sources)}")
-            if enable_web and contexte_web: st.caption("🌍 Infos vérifiées sur le Web")
+            # Affichage discret des sources
+            if sources: st.caption(f"📚 {', '.join(sources)}")
             
-            # Lecture Audio
+            # Lecture audio
             if enable_audio_out:
                 audio_file = text_to_speech(full_resp)
                 if audio_file: st.audio(audio_file)
@@ -225,4 +231,4 @@ if final_question:
             st.session_state.messages.append({"role": "assistant", "content": full_resp})
             
         except Exception as e:
-            st.error(f"Erreur : {e}")
+            st.error(f"Oups : {e}")
