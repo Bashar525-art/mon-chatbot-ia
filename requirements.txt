@@ -1,6 +1,8 @@
 streamlit
 mistralai
 pypdf
-langchain-mistralai
-langchain-community
+langchain
+langchain_mistralai
+langchain_community
 faiss-cpu
+gTTS
