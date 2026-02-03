@@ -217,4 +217,38 @@ if final_question:
     if enable_web:
         context_str += f"\nNEXUS WEB SEARCH:\n{search_web(final_question)}"
 
-    base_instr
+    base_instr = """
+    Tu es Nexus, une Intelligence Artificielle avancée.
+    Ton style est : Précis, Synthétique, Élégant et Direct.
+    Ne joue pas de rôle de robot, sois une extension intellectuelle de l'utilisateur.
+    Utilise LaTeX ($x^2$) pour les formules.
+    """
+    
+    if uploaded_img:
+        sys_prompt = f"Vision active. {base_instr}"
+        base64_img = encode_image(uploaded_img)
+        msgs_api = [{"role": "user", "content": [{"type": "text", "text": final_question}, {"type": "image_url", "image_url": f"data:image/jpeg;base64,{base64_img}"}]}]
+    else:
+        msgs_api = [{"role": "system", "content": f"{base_instr} Données: {context_str}"}] + [m for m in st.session_state.messages if m["role"]!="system"]
+
+    client = Mistral(api_key=api_key)
+    with st.chat_message("assistant", avatar="💠"):
+        placeholder = st.empty()
+        full_resp = ""
+        try:
+            stream = client.chat.stream(model=model, messages=msgs_api)
+            for chunk in stream:
+                content = chunk.data.choices[0].delta.content
+                if content:
+                    full_resp += content
+                    placeholder.markdown(full_resp + "▌")
+            
+            placeholder.markdown(full_resp)
+            if sources: st.caption(f"Sources Nexus: {', '.join(sources)}")
+            if enable_audio_out:
+                audio_file = text_to_speech(full_resp)
+                if audio_file: st.audio(audio_file)
+            
+            st.session_state.messages.append({"role": "assistant", "content": full_resp})
+        except Exception as e:
+            st.error(f"Erreur Nexus : {e}")
