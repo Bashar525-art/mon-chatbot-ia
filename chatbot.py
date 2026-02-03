@@ -247,7 +247,7 @@ if final_question:
     if enable_web:
         context_str += f"\nNEXUS WEB SEARCH:\n{search_web(final_question)}"
 
-    # --- INSTRUCTION CRITIQUE CORRIGÉE (Raw String) ---
+    # --- INSTRUCTION CRITIQUE CORRIGÉE (Raw String 'r') ---
     base_instr = r"""
     Tu es Nexus, une IA avancée. Ton style est Précis, Synthétique, Élégant et Direct.
     
