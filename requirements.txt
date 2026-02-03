@@ -8,3 +8,4 @@ faiss-cpu
 gTTS
 SpeechRecognition
 duckduckgo-search
+python-docx
