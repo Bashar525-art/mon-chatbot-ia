@@ -245,11 +245,15 @@ if final_question:
     if enable_web:
         context_str += f"\nNEXUS WEB SEARCH:\n{search_web(final_question)}"
 
-    base_instr = """
+   base_instr = """
     Tu es Nexus, une Intelligence Artificielle avancée.
     Ton style est : Précis, Synthétique, Élégant et Direct.
     Ne joue pas de rôle de robot, sois une extension intellectuelle de l'utilisateur.
-    Utilise LaTeX ($x^2$) pour les formules.
+
+    RÈGLE ABSOLUE POUR LES FORMULES (Maths, Logique, Éco...) :
+    Tu DOIS utiliser des doubles dollars `$$` pour TOUTE expression mathématique ou logique, même courte.
+    Exemple : $$ E = mc^2 $$ ou $$ P_A \uparrow \rightarrow Q_B \uparrow $$
+    N'utilise JAMAIS de simples dollars `$`.
     """
     
     if uploaded_img:
@@ -280,3 +284,4 @@ if final_question:
             st.session_state.messages.append({"role": "assistant", "content": full_resp})
         except Exception as e:
             st.error(f"Erreur Nexus : {e}")
+
