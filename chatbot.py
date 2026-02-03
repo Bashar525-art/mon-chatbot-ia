@@ -47,7 +47,7 @@ if not st.session_state.authenticated:
 if "messages" not in st.session_state:
     st.session_state.messages = [{"role": "assistant", "content": "Nexus en ligne. Prêt."}]
 
-# --- STYLE CSS "3D HYPERSPACE" (DESIGN FINAL) ---
+# --- STYLE CSS "3D HYPERSPACE" ---
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap');
@@ -59,34 +59,25 @@ st.markdown("""
         overflow: hidden;
     }
     
-    /* Étoiles lointaines (Lentes) */
     .stApp::before {
-        content: "";
-        position: fixed;
-        top: 0; left: 0; width: 100%; height: 100%;
+        content: ""; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
         background-image: 
             radial-gradient(white, rgba(255,255,255,.2) 2px, transparent 3px),
             radial-gradient(white, rgba(255,255,255,.15) 1px, transparent 2px),
             radial-gradient(white, rgba(255,255,255,.1) 2px, transparent 3px);
         background-size: 550px 550px, 350px 350px, 250px 250px;
         background-position: 0 0, 40px 60px, 130px 270px;
-        animation: stars 120s linear infinite;
-        z-index: -2;
+        animation: stars 120s linear infinite; z-index: -2;
     }
     
-    /* Étoiles proches (Rapides + Effet 3D) */
     .stApp::after {
-        content: "";
-        position: fixed;
-        top: 0; left: 0; width: 100%; height: 100%;
+        content: ""; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
         background-image: 
             radial-gradient(white, rgba(255,255,255,.8) 2px, transparent 2px),
             radial-gradient(white, rgba(255,255,255,.6) 1px, transparent 2px);
         background-size: 300px 300px, 200px 200px;
         background-position: 0 0, 40px 60px;
-        animation: stars 60s linear infinite;
-        z-index: -1;
-        opacity: 0.6;
+        animation: stars 60s linear infinite; z-index: -1; opacity: 0.6;
     }
 
     @keyframes stars {
@@ -94,40 +85,25 @@ st.markdown("""
         50% { transform: translateY(-500px) scale(1.1); }
         100% { transform: translateY(-1000px) scale(1); }
     }
-    /* -------------------------------------- */
     
-    /* TITRE */
     h1 { color: #ffffff; font-weight: 600; text-align: center; letter-spacing: -1px; margin-bottom: 10px; text-shadow: 0 0 20px rgba(0, 150, 255, 0.5); }
-    
-    /* SIDEBAR (Verre fumé) */
     [data-testid="stSidebar"] { background-color: rgba(5, 5, 10, 0.6); border-right: 1px solid rgba(255, 255, 255, 0.05); backdrop-filter: blur(20px); }
     
-    /* MESSAGES */
     .stChatMessage { background-color: transparent !important; border: none !important; }
     div[data-testid="stChatMessage"][data-testid*="assistant"] > div { 
-        background-color: rgba(20, 20, 30, 0.75) !important; 
-        border: 1px solid rgba(100, 200, 255, 0.1) !important; 
-        border-radius: 12px !important; 
-        padding: 15px; 
-        backdrop-filter: blur(10px);
+        background-color: rgba(20, 20, 30, 0.75) !important; border: 1px solid rgba(100, 200, 255, 0.1) !important; 
+        border-radius: 12px !important; padding: 15px; backdrop-filter: blur(10px);
         box-shadow: 0 4px 30px rgba(0,0,0,0.3);
     }
     div[data-testid="stChatMessage"][data-testid*="user"] > div { 
         background: linear-gradient(135deg, rgba(50, 50, 90, 0.9), rgba(30, 30, 60, 0.9)) !important; 
-        color: white !important; 
-        border-radius: 12px !important; 
-        padding: 15px; 
-        backdrop-filter: blur(10px);
-        border: 1px solid rgba(255,255,255,0.1);
+        color: white !important; border-radius: 12px !important; padding: 15px; 
+        backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.1);
     }
     
-    /* INPUT */
     .stChatInput textarea { background-color: rgba(10, 10, 15, 0.8) !important; color: white !important; border: 1px solid rgba(255, 255, 255, 0.1) !important; border-radius: 12px !important; backdrop-filter: blur(5px); }
-    
-    /* CACHER */
     #MainMenu {visibility: hidden;} footer {visibility: hidden;} .stDeployButton {display:none;}
     
-    /* MICROPHONE HAUT DROITE */
     [data-testid="stAudioInput"] { position: fixed; top: 70px; right: 20px; z-index: 9999; width: fit-content !important; }
     [data-testid="stAudioInput"] > div { background-color: transparent !important; border: none !important; }
     [data-testid="stAudioInput"] button {
@@ -271,8 +247,8 @@ if final_question:
     if enable_web:
         context_str += f"\nNEXUS WEB SEARCH:\n{search_web(final_question)}"
 
-    # --- INSTRUCTION CRITIQUE POUR MATHS ET RENDU ---
-    base_instr = """
+    # --- INSTRUCTION CRITIQUE CORRIGÉE (Raw String) ---
+    base_instr = r"""
     Tu es Nexus, une IA avancée. Ton style est Précis, Synthétique, Élégant et Direct.
     
     RÈGLE CRITIQUE POUR L'AFFICHAGE (LaTeX) :
