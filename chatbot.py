@@ -45,30 +45,58 @@ if not st.session_state.authenticated:
 
 # --- INITIALISATION ---
 if "messages" not in st.session_state:
-    st.session_state.messages = [{"role": "assistant", "content": "Nexus en ligne. J'attends vos données."}]
+    st.session_state.messages = [{"role": "assistant", "content": "Nexus en ligne. Prêt."}]
 
-# --- STYLE CSS "OBSIDIAN" ---
+# --- STYLE CSS "NÉBULEUSE AURORE" (DESIGN FINAL) ---
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap');
     html, body, [class*="css"] { font-family: 'Inter', sans-serif; color: #E0E0E0; }
     
-    /* FOND NOIR PROFOND */
-    .stApp { background-color: #050505; background-image: radial-gradient(circle at 50% 0%, #111 0%, #050505 80%); }
+    /* --- FOND ANIMÉ "NÉBULEUSE" --- */
+    .stApp {
+        background-color: #050505;
+        background-image: 
+            radial-gradient(at 10% 30%, rgb(23, 20, 65) 0px, transparent 50%),
+            radial-gradient(at 90% 80%, rgb(45, 15, 70) 0px, transparent 50%),
+            radial-gradient(at 50% 50%, #080815 0%, #000000 100%);
+        background-size: 300% 300%;
+        animation: aurora 25s ease infinite;
+    }
+    @keyframes aurora {
+        0% { background-position: 0% 50%; }
+        50% { background-position: 100% 50%; }
+        100% { background-position: 0% 50%; }
+    }
     
     /* TITRE */
-    h1 { color: #ffffff; font-weight: 600; text-align: center; letter-spacing: -1px; margin-bottom: 10px; }
+    h1 { color: #ffffff; font-weight: 600; text-align: center; letter-spacing: -1px; margin-bottom: 10px; text-shadow: 0 0 20px rgba(0, 150, 255, 0.3); }
     
-    /* SIDEBAR */
-    [data-testid="stSidebar"] { background-color: rgba(5, 5, 5, 0.9); border-right: 1px solid rgba(255, 255, 255, 0.05); backdrop-filter: blur(20px); }
+    /* SIDEBAR (EFFET VERRE) */
+    [data-testid="stSidebar"] { background-color: rgba(5, 5, 5, 0.6); border-right: 1px solid rgba(255, 255, 255, 0.05); backdrop-filter: blur(15px); }
     
     /* MESSAGES */
     .stChatMessage { background-color: transparent !important; border: none !important; }
-    div[data-testid="stChatMessage"][data-testid*="assistant"] > div { background-color: #121212 !important; border: 1px solid #333 !important; border-radius: 12px !important; padding: 15px; }
-    div[data-testid="stChatMessage"][data-testid*="user"] > div { background-color: #222 !important; color: white !important; border-radius: 12px !important; padding: 15px; }
+    /* Bulle IA */
+    div[data-testid="stChatMessage"][data-testid*="assistant"] > div { 
+        background-color: rgba(18, 18, 18, 0.7) !important; 
+        border: 1px solid rgba(255, 255, 255, 0.1) !important; 
+        border-radius: 12px !important; 
+        padding: 15px; 
+        backdrop-filter: blur(5px);
+    }
+    /* Bulle Utilisateur */
+    div[data-testid="stChatMessage"][data-testid*="user"] > div { 
+        background-color: rgba(40, 40, 60, 0.8) !important; 
+        color: white !important; 
+        border-radius: 12px !important; 
+        padding: 15px; 
+        backdrop-filter: blur(5px);
+        box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+    }
     
     /* INPUT */
-    .stChatInput textarea { background-color: #0a0a0a !important; color: white !important; border: 1px solid #333 !important; border-radius: 12px !important; }
+    .stChatInput textarea { background-color: rgba(10, 10, 10, 0.8) !important; color: white !important; border: 1px solid rgba(51, 51, 51, 0.5) !important; border-radius: 12px !important; backdrop-filter: blur(5px); }
     
     /* CACHER */
     #MainMenu {visibility: hidden;} footer {visibility: hidden;} .stDeployButton {display:none;}
