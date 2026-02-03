@@ -13,57 +13,67 @@ from langchain_community.vectorstores import FAISS
 from langchain_core.documents import Document as LangChainDocument
 from gtts import gTTS
 from duckduckgo_search import DDGS
-from docx import Document as WordDocument # Pour créer des fichiers Word
+from docx import Document as WordDocument
 
-# --- CONFIGURATION ---
-st.set_page_config(page_title="UltraBrain Omni", page_icon="🧠", layout="wide")
+# --- CONFIGURATION NEXUS ---
+st.set_page_config(page_title="Nexus", page_icon="💠", layout="wide")
 
 if "MISTRAL_API_KEY" not in st.secrets or "APP_PASSWORD" not in st.secrets:
-    st.error("⚠️ Secrets manquants. Vérifiez .streamlit/secrets.toml")
+    st.error("⚠️ Configuration manquante. Vérifiez les Secrets.")
     st.stop()
 
 api_key = st.secrets["MISTRAL_API_KEY"]
 correct_password = st.secrets["APP_PASSWORD"]
 model = "pixtral-12b-2409"
 
-# --- LOGIN MINIMALISTE ---
+# --- LOGIN NEXUS ---
 if "authenticated" not in st.session_state: st.session_state.authenticated = False
 if not st.session_state.authenticated:
     st.markdown("""
     <style>
-        .stTextInput input { text-align: center; border-radius: 10px; }
+        .stTextInput input { text-align: center; border-radius: 10px; letter-spacing: 2px; }
         div[data-testid="stAppViewContainer"] { background-color: #050505; }
     </style>
     <br><br><br>
-    <h1 style='text-align:center; color: white; font-weight: 300; letter-spacing: 4px;'>ULTRABRAIN OMNI</h1>
+    <h1 style='text-align:center; color: white; font-weight: 200; letter-spacing: 8px; font-size: 3rem;'>N E X U S</h1>
+    <p style='text-align:center; color: #666; font-size: 0.8rem; letter-spacing: 2px;'>SYSTEM ACCESS</p>
     """, unsafe_allow_html=True)
-    if st.button("ENTRER") or st.text_input("PASSWORD", type="password") == correct_password:
+    if st.button("INITIALISER") or st.text_input("CODE D'ACCÈS", type="password") == correct_password:
         st.session_state.authenticated = True
         st.rerun()
     st.stop()
 
 # --- INITIALISATION ---
 if "messages" not in st.session_state:
-    st.session_state.messages = [{"role": "assistant", "content": "Système Omni en ligne. Prêt pour analyse multi-sources et rédaction."}]
+    st.session_state.messages = [{"role": "assistant", "content": "Nexus en ligne. J'attends vos données."}]
 
 # --- STYLE CSS "OBSIDIAN" ---
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap');
     html, body, [class*="css"] { font-family: 'Inter', sans-serif; color: #E0E0E0; }
-    .stApp { background-color: #050505; background-image: radial-gradient(circle at 50% 0%, #1a1a1a 0%, #050505 60%); }
-    h1 { color: #ffffff; font-weight: 600; text-align: center; letter-spacing: -1px; margin-bottom: 30px; }
     
-    [data-testid="stSidebar"] { background-color: rgba(10, 10, 10, 0.8); border-right: 1px solid rgba(255, 255, 255, 0.08); backdrop-filter: blur(20px); }
+    /* FOND NOIR PROFOND */
+    .stApp { background-color: #050505; background-image: radial-gradient(circle at 50% 0%, #111 0%, #050505 80%); }
     
+    /* TITRE */
+    h1 { color: #ffffff; font-weight: 600; text-align: center; letter-spacing: -1px; margin-bottom: 10px; }
+    
+    /* SIDEBAR */
+    [data-testid="stSidebar"] { background-color: rgba(5, 5, 5, 0.9); border-right: 1px solid rgba(255, 255, 255, 0.05); backdrop-filter: blur(20px); }
+    
+    /* MESSAGES */
     .stChatMessage { background-color: transparent !important; border: none !important; }
-    div[data-testid="stChatMessage"][data-testid*="assistant"] > div { background-color: #161616 !important; border: 1px solid #333 !important; border-radius: 12px !important; padding: 15px; }
-    div[data-testid="stChatMessage"][data-testid*="user"] > div { background-color: #262626 !important; color: white !important; border-radius: 12px !important; padding: 15px; }
+    div[data-testid="stChatMessage"][data-testid*="assistant"] > div { background-color: #121212 !important; border: 1px solid #333 !important; border-radius: 12px !important; padding: 15px; }
+    div[data-testid="stChatMessage"][data-testid*="user"] > div { background-color: #222 !important; color: white !important; border-radius: 12px !important; padding: 15px; }
     
-    .stChatInput textarea { background-color: #111 !important; color: white !important; border: 1px solid #333 !important; border-radius: 12px !important; }
+    /* INPUT */
+    .stChatInput textarea { background-color: #0a0a0a !important; color: white !important; border: 1px solid #333 !important; border-radius: 12px !important; }
+    
+    /* CACHER */
     #MainMenu {visibility: hidden;} footer {visibility: hidden;} .stDeployButton {display:none;}
     
-    /* MICRO EN HAUT A DROITE */
+    /* MICROPHONE HAUT DROITE */
     [data-testid="stAudioInput"] { position: fixed; top: 70px; right: 20px; z-index: 9999; width: fit-content !important; }
     [data-testid="stAudioInput"] > div { background-color: transparent !important; border: none !important; }
     [data-testid="stAudioInput"] button {
@@ -77,26 +87,20 @@ st.markdown("""
 
 INDEX_FOLDER = "faiss_index_mistral"
 
-# --- FONCTIONS AVANCÉES ---
+# --- FONCTIONS ---
 def encode_image(uploaded_file):
     return base64.b64encode(uploaded_file.getvalue()).decode('utf-8')
 
-# MODIFIÉ POUR MULTI-PDF
 def get_pdf_documents(uploaded_files):
     all_docs = []
-    # Si c'est un seul fichier, on le met dans une liste
-    if not isinstance(uploaded_files, list):
-        uploaded_files = [uploaded_files]
-        
+    if not isinstance(uploaded_files, list): uploaded_files = [uploaded_files]  
     for pdf_file in uploaded_files:
         try:
             reader = PdfReader(pdf_file)
             filename = pdf_file.name
             for i, page in enumerate(reader.pages):
                 text = page.extract_text()
-                if text:
-                    # On ajoute le nom du fichier dans les métadonnées pour savoir d'où ça vient
-                    all_docs.append(LangChainDocument(page_content=text, metadata={"source": filename, "page": i + 1}))
+                if text: all_docs.append(LangChainDocument(page_content=text, metadata={"source": filename, "page": i + 1}))
         except: continue
     return all_docs
 
@@ -114,17 +118,13 @@ def get_vector_store(documents, _api_key):
     except: return None
 
 def create_word_docx(messages):
-    """Génère un fichier Word propre à partir de la conversation"""
     doc = WordDocument()
-    doc.add_heading('Rapport de Conversation UltraBrain', 0)
-    
+    doc.add_heading('Rapport NEXUS', 0)
     for msg in messages:
-        role = "L'IA" if msg["role"] == "assistant" else "UTILISATEUR"
+        role = "NEXUS" if msg["role"] == "assistant" else "UTILISATEUR"
         doc.add_heading(role, level=2)
         doc.add_paragraph(msg["content"])
-        doc.add_paragraph("-" * 20) # Séparateur
-    
-    # Sauvegarde en mémoire (RAM)
+        doc.add_paragraph("_" * 20)
     buffer = io.BytesIO()
     doc.save(buffer)
     buffer.seek(0)
@@ -152,67 +152,54 @@ def transcribe_audio(audio_bytes):
             return r.recognize_google(audio_data, language="fr-FR")
     except: return None
 
-# --- SIDEBAR (Pro) ---
+# --- SIDEBAR ---
 with st.sidebar:
-    st.markdown("<h4 style='color:#888;'>CENTRE DE CONTRÔLE</h4>", unsafe_allow_html=True)
+    st.markdown("<h3 style='color:white; letter-spacing:2px; text-align:center;'>N E X U S</h3>", unsafe_allow_html=True)
+    st.markdown("<hr style='margin:10px 0; border-color:#333;'>", unsafe_allow_html=True)
     
-    # UPLOAD MULTIPLE
-    uploaded_pdfs = st.file_uploader("Bibliothèque (PDFs)", type="pdf", accept_multiple_files=True)
-    uploaded_img = st.file_uploader("Vision (Image)", type=["jpg", "png"])
+    uploaded_pdfs = st.file_uploader("Sources (PDF)", type="pdf", accept_multiple_files=True)
+    uploaded_img = st.file_uploader("Visuel (IMG)", type=["jpg", "png"])
     
-    st.divider()
+    st.markdown("<br>", unsafe_allow_html=True)
     col1, col2 = st.columns(2)
-    with col1: enable_web = st.toggle("Web", value=False)
+    with col1: enable_web = st.toggle("Net", value=False)
     with col2: enable_audio_out = st.toggle("Vocal", value=False)
     
-    st.divider()
-    
-    # EXPORT WORD
+    st.markdown("<br>", unsafe_allow_html=True)
     if len(st.session_state.messages) > 1:
         docx_file = create_word_docx(st.session_state.messages)
-        st.download_button(
-            label="📄 Télécharger Rapport (.docx)",
-            data=docx_file,
-            file_name="UltraBrain_Rapport.docx",
-            mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-            use_container_width=True
-        )
+        st.download_button("📄 Export Word", data=docx_file, file_name="Nexus_Rapport.docx", mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document", use_container_width=True)
 
-    if st.button("🔴 RESET TOUT", type="primary", use_container_width=True):
+    if st.button("🔴 Purger Mémoire", type="primary", use_container_width=True):
         st.session_state.messages = []
         if os.path.exists(INDEX_FOLDER): shutil.rmtree(INDEX_FOLDER)
         st.rerun()
 
 # --- MAIN ---
-st.title("UltraBrain Omni")
+st.title("Nexus")
 
 vector_db = None
 if uploaded_pdfs:
-    # On passe la LISTE des fichiers
     raw = get_pdf_documents(uploaded_pdfs)
     if raw:
         vector_db = get_vector_store(raw, api_key)
-        if vector_db: st.toast(f"{len(uploaded_pdfs)} documents mémorisés.", icon="📚")
+        if vector_db: st.toast(f"{len(uploaded_pdfs)} fichiers intégrés.", icon="💠")
 
-# Affichage
 for msg in st.session_state.messages:
-    with st.chat_message(msg["role"], avatar="▫️" if msg["role"]=="user" else "🧠"):
+    with st.chat_message(msg["role"], avatar="▫️" if msg["role"]=="user" else "💠"):
         st.markdown(msg["content"])
 
-# --- INPUTS ---
 audio_val = st.audio_input("🎙️")
-text_val = st.chat_input("Ordre...")
+text_val = st.chat_input("Ordre pour Nexus...")
 
 final_question = None
-
 if audio_val:
-    with st.spinner("Transcription..."):
+    with st.spinner("Analyse audio..."):
         transcribed = transcribe_audio(audio_val)
         if transcribed: final_question = transcribed
 elif text_val:
     final_question = text_val
 
-# --- LOGIQUE ---
 if final_question:
     st.session_state.messages.append({"role": "user", "content": final_question})
     with st.chat_message("user", avatar="▫️"):
@@ -223,46 +210,11 @@ if final_question:
     sources = []
     
     if vector_db and not uploaded_img:
-        docs = vector_db.similarity_search(final_question, k=4) # On cherche un peu plus large
-        context_str += "\nEXTRAITS BIBLIOTHÈQUE:\n" + "\n".join([d.page_content for d in docs])
-        # On récupère les sources (Nom fichier + Page)
+        docs = vector_db.similarity_search(final_question, k=4)
+        context_str += "\nNEXUS DATABASE:\n" + "\n".join([d.page_content for d in docs])
         sources = list(set([f"{d.metadata['source']} (p.{d.metadata['page']})" for d in docs]))
 
     if enable_web:
-        context_str += f"\nLIVE WEB:\n{search_web(final_question)}"
+        context_str += f"\nNEXUS WEB SEARCH:\n{search_web(final_question)}"
 
-    base_instr = """
-    Tu es UltraBrain Omni. Expert synthèse, analyse et rédaction.
-    Ton style : Précis, structuré, professionnel.
-    Si tu as des documents, cite-les précisément.
-    Utilise LaTeX ($x^2$) pour les sciences.
-    """
-    
-    if uploaded_img:
-        sys_prompt = f"Vision active. {base_instr}"
-        base64_img = encode_image(uploaded_img)
-        msgs_api = [{"role": "user", "content": [{"type": "text", "text": final_question}, {"type": "image_url", "image_url": f"data:image/jpeg;base64,{base64_img}"}]}]
-    else:
-        msgs_api = [{"role": "system", "content": f"{base_instr} Données: {context_str}"}] + [m for m in st.session_state.messages if m["role"]!="system"]
-
-    client = Mistral(api_key=api_key)
-    with st.chat_message("assistant", avatar="🧠"):
-        placeholder = st.empty()
-        full_resp = ""
-        try:
-            stream = client.chat.stream(model=model, messages=msgs_api)
-            for chunk in stream:
-                content = chunk.data.choices[0].delta.content
-                if content:
-                    full_resp += content
-                    placeholder.markdown(full_resp + "▌")
-            
-            placeholder.markdown(full_resp)
-            if sources: st.caption(f"Sources : {', '.join(sources)}")
-            if enable_audio_out:
-                audio_file = text_to_speech(full_resp)
-                if audio_file: st.audio(audio_file)
-            
-            st.session_state.messages.append({"role": "assistant", "content": full_resp})
-        except Exception as e:
-            st.error(f"Erreur : {e}")
+    base_instr
