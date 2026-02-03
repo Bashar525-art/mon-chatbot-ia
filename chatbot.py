@@ -47,7 +47,7 @@ if not st.session_state.authenticated:
 if "messages" not in st.session_state:
     st.session_state.messages = [{"role": "assistant", "content": "Nexus en ligne. Prêt."}]
 
-# --- STYLE CSS "NÉBULEUSE AURORE" (DESIGN FINAL) ---
+# --- STYLE CSS "NÉBULEUSE AURORE" ---
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap');
@@ -245,15 +245,18 @@ if final_question:
     if enable_web:
         context_str += f"\nNEXUS WEB SEARCH:\n{search_web(final_question)}"
 
-   base_instr = """
-    Tu es Nexus, une Intelligence Artificielle avancée.
-    Ton style est : Précis, Synthétique, Élégant et Direct.
-    Ne joue pas de rôle de robot, sois une extension intellectuelle de l'utilisateur.
-
-    RÈGLE ABSOLUE POUR LES FORMULES (Maths, Logique, Éco...) :
-    Tu DOIS utiliser des doubles dollars `$$` pour TOUTE expression mathématique ou logique, même courte.
-    Exemple : $$ E = mc^2 $$ ou $$ P_A \uparrow \rightarrow Q_B \uparrow $$
-    N'utilise JAMAIS de simples dollars `$`.
+    # --- INSTRUCTION CRITIQUE POUR LE RENDU ---
+    base_instr = """
+    Tu es Nexus, une IA avancée. Ton style est Précis, Synthétique, Élégant et Direct.
+    
+    RÈGLE CRITIQUE POUR L'AFFICHAGE (LaTeX) :
+    Streamlit NE PEUT PAS lire le LaTeX brut. Tu DOIS encadrer TOUTES les expressions mathématiques ou symboliques.
+    1. Pour les formules INTÉGRÉES au texte, utilise UN SEUL dollar de chaque côté.
+       -> MAUVAIS : "Si la demande monte (\uparrow)..."
+       -> BON : "Si la demande monte ($\uparrow$)..."
+    2. Pour les équations COMPLÈTES ou importantes, utilise DEUX dollars pour les centrer.
+       -> BON : $$ E = mc^2 $$
+    3. N'écris JAMAIS de commandes LaTeX (comme \frac, \rightarrow, \uparrow, \partial) sans dollars autour.
     """
     
     if uploaded_img:
@@ -284,4 +287,3 @@ if final_question:
             st.session_state.messages.append({"role": "assistant", "content": full_resp})
         except Exception as e:
             st.error(f"Erreur Nexus : {e}")
-
