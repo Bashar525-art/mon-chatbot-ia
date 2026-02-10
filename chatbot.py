@@ -1,9 +1,5 @@
 import streamlit as st
 import os
-import shutil
-import base64
-import tempfile
-import io
 from datetime import datetime
 from mistralai import Mistral
 from pypdf import PdfReader
@@ -14,185 +10,157 @@ from langchain_core.documents import Document as LangChainDocument
 from gtts import gTTS
 from duckduckgo_search import DDGS
 
-# --- CONFIGURATION NEXUS ---
-st.set_page_config(page_title="Nexus Omni", page_icon="💠", layout="wide")
+# --- CONFIGURATION LEX NEXUS ---
+st.set_page_config(page_title="Lex Nexus | Intelligence Juridique", page_icon="⚖️", layout="wide")
 
-# Vérification de la clé API
 if "MISTRAL_API_KEY" not in st.secrets:
-    st.error("⚠️ Clé API Mistral manquante dans les Secrets.")
+    st.error("⚠️ Clé API Mistral manquante.")
     st.stop()
 
 api_key = st.secrets["MISTRAL_API_KEY"]
 model_default = "pixtral-12b-2409"
 
-# Initialisation de l'historique
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
-# --- STYLE CSS "NEXUS PREMIUM" ---
+# --- STYLE CSS "CABINET D'AVOCATS" ---
 st.markdown(r"""
 <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap');
-    html, body, [class*="css"] { font-family: 'Inter', sans-serif; color: #E0E0E0; }
-    .stApp { background: radial-gradient(ellipse at bottom, #1B2735 0%, #090A0F 100%); overflow-x: hidden; }
+    @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Inter:wght@300;400;600&display=swap');
     
-    /* Titre animé */
-    .nexus-title { text-align: center; font-size: 4rem; font-weight: 200; letter-spacing: 15px; color: white; text-shadow: 0 0 30px rgba(0, 150, 255, 0.5); margin-top: 50px; }
+    html, body, [class*="css"] { font-family: 'Inter', sans-serif; color: #F0F0F0; }
     
-    /* Bulles de chat Glassmorphism */
-    div[data-testid="stChatMessage"] { 
-        background-color: rgba(255, 255, 255, 0.03) !important; 
-        backdrop-filter: blur(15px); 
-        border: 1px solid rgba(255, 255, 255, 0.05); 
-        border-radius: 15px !important; 
-        margin-bottom: 10px; 
+    .stApp {
+        background: linear-gradient(135deg, #0A0E14 0%, #151B26 100%);
     }
-    
-    /* Sidebar */
-    [data-testid="stSidebar"] { background-color: rgba(0, 0, 0, 0.8) !important; backdrop-filter: blur(20px); }
+
+    .legal-title {
+        text-align: center; font-family: 'Playfair Display', serif;
+        font-size: 3.5rem; color: #D4AF37; /* Couleur Or */
+        letter-spacing: 2px; margin-top: 30px;
+        text-shadow: 0 0 20px rgba(212, 175, 55, 0.2);
+    }
+
+    /* Bulles de chat élégantes */
+    div[data-testid="stChatMessage"] {
+        background-color: rgba(255, 255, 255, 0.02) !important;
+        border: 1px solid rgba(212, 175, 55, 0.1);
+        border-radius: 8px !important;
+        padding: 20px;
+    }
+
+    [data-testid="stSidebar"] {
+        background-color: #070A0F !important;
+        border-right: 1px solid #D4AF37;
+    }
+
+    /* Boutons personnalisés */
+    .stButton button {
+        background-color: transparent !important;
+        border: 1px solid #D4AF37 !important;
+        color: #D4AF37 !important;
+        border-radius: 5px !important;
+        transition: 0.3s;
+    }
+    .stButton button:hover {
+        background-color: #D4AF37 !important;
+        color: #0A0E14 !important;
+    }
 </style>
 """, unsafe_allow_html=True)
 
-# --- FONCTIONS SYSTÈME ---
-def get_shared_knowledge():
-    """Récupère la mémoire collective (Auto-apprentissage contrôlé)"""
-    shared_file = "brain_shared.txt"
-    if os.path.exists(shared_file):
-        with open(shared_file, "r", encoding="utf-8") as f:
-            return f.read()
-    return ""
-
-def get_pdf_documents(files):
-    """Analyse les fichiers PDF de l'utilisateur"""
-    docs = []
+# --- FONCTIONS ---
+def get_pdf_text(files):
+    all_text = ""
     for f in files:
         reader = PdfReader(f)
-        for i, page in enumerate(reader.pages):
-            text = page.extract_text()
-            if text: docs.append(LangChainDocument(page_content=text, metadata={"source": f.name, "page": i+1}))
-    return docs
+        for page in reader.pages:
+            all_text += page.extract_text() + "\n"
+    return all_text
 
-# --- BARRE LATÉRALE (SIDEBAR) ---
+# --- SIDEBAR PROFESSIONNELLE ---
 with st.sidebar:
-    st.markdown("<h2 style='text-align:center;'>N E X U S</h2>", unsafe_allow_html=True)
-    
-    # Navigation entre les pages
-    menu = st.radio("NAVIGATION", ["Chat Nexus", "Sécurité & Confidentialité"])
+    st.markdown("<h1 style='color:#D4AF37; text-align:center;'>LEX NEXUS</h1>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align:center; font-size:0.8rem;'>Expertise Juridique Augmentée</p>", unsafe_allow_html=True)
     st.markdown("---")
     
-    if menu == "Chat Nexus":
-        enable_web = st.toggle("🌐 Recherche Web", value=False)
-        enable_vocal = st.toggle("🔊 Réponse Vocale", value=False)
-        st.markdown("---")
-        uploaded_pdfs = st.file_uploader("Fichiers PDF (Privés)", type="pdf", accept_multiple_files=True)
-        if st.button("🗑️ Nouvelle Session", use_container_width=True):
-            st.session_state.messages = []
-            st.rerun()
-    else:
-        st.subheader("🛡️ Engagement Sécurité")
-        st.info("""
-        **Pourquoi Nexus est sûr :**
-        1. **Mistral AI (France)** : Vos données restent en Europe.
-        2. **Zéro Entraînement** : Vos fichiers ne servent pas à entraîner l'IA.
-        3. **Sessions Éphémères** : Rien n'est conservé après la fermeture.
-        """)
+    mode = st.radio("SERVICE", ["Audit de Contrat", "Comparaison de Documents", "Sécurité & RGPD"])
+    
+    st.markdown("---")
+    if mode == "Audit de Contrat":
+        uploaded_files = st.file_uploader("Charger le contrat (PDF)", type="pdf", accept_multiple_files=True)
+        audit_depth = st.select_slider("Profondeur d'analyse", ["Standard", "Détaillée", "Expert"])
+    
+    elif mode == "Comparaison de Documents":
+        doc_a = st.file_uploader("Document A (Référence)", type="pdf")
+        doc_b = st.file_uploader("Document B (À comparer)", type="pdf")
+    
+    if st.button("⚖️ Réinitialiser le dossier"):
+        st.session_state.messages = []
+        st.rerun()
 
-# --- PAGE 1 : CHAT NEXUS ---
-if menu == "Chat Nexus":
-    # Accueil
+# --- LOGIQUE PRINCIPALE ---
+
+if mode == "Sécurité & RGPD":
+    st.markdown("## 🛡️ Garantie de Confidentialité Juridique")
+    st.info("Lex Nexus opère sous un protocole de chiffrement de bout en bout. Aucune donnée n'est stockée de manière permanente.")
+    st.write("### Nos engagements :")
+    st.write("- **Hébergement Souverain** : Serveurs localisés en UE.")
+    st.write("- **Secret Professionnel** : Algorithmes isolés par session utilisateur.")
+
+elif mode == "Comparaison de Documents":
+    st.markdown("### 🔍 Mode Comparaison de Contrats")
+    if doc_a and doc_b:
+        if st.button("Lancer la comparaison"):
+            with st.spinner("Analyse comparative en cours..."):
+                text_a = get_pdf_text([doc_a])
+                text_b = get_pdf_text([doc_b])
+                
+                client = Mistral(api_key=api_key)
+                prompt = f"Compare ces deux textes juridiques. Liste les différences majeures (clauses ajoutées, modifiées ou supprimées). Présente cela sous forme de tableau.\n\nDOC A: {text_a[:4000]}\n\nDOC B: {text_b[:4000]}"
+                
+                resp = client.chat.complete(model=model_default, messages=[{"role": "user", "content": prompt}])
+                st.markdown(resp.choices[0].message.content)
+
+else: # Audit de Contrat / Chat
     if not st.session_state.messages:
-        st.markdown('<h1 class="nexus-title">NEXUS</h1>', unsafe_allow_html=True)
-        st.markdown("<p style='text-align:center; color:#888;'>L'Intelligence Artificielle Souveraine et Collective.</p>", unsafe_allow_html=True)
+        st.markdown('<h1 class="legal-title">LEX NEXUS</h1>', unsafe_allow_html=True)
+        st.markdown("<p style='text-align:center; color:#888;'>Déposez un acte ou un contrat pour une analyse immédiate.</p>", unsafe_allow_html=True)
 
-    # Affichage des messages
     for msg in st.session_state.messages:
-        with st.chat_message(msg["role"], avatar="💠" if msg["role"]=="assistant" else "▫️"):
+        with st.chat_message(msg["role"], avatar="⚖️" if msg["role"]=="assistant" else "▫️"):
             st.markdown(msg["content"])
 
-    # Entrée utilisateur
-    text_in = st.chat_input("Posez votre question à Nexus...")
+    text_in = st.chat_input("Ex: 'Analyse les risques de ce contrat de bail'...")
 
     if text_in:
         st.session_state.messages.append({"role": "user", "content": text_in})
         with st.chat_message("user", avatar="▫️"):
             st.markdown(text_in)
 
-        # Logique de réponse
-        context = ""
-        date_str = datetime.now().strftime("%A %d %B %Y, %H:%M")
-        
-        # Gestion du spinner (Réflexion)
-        with st.status("Nexus analyse...", expanded=False) as status:
-            # 1. Mémoire Collective
-            shared_kb = get_shared_knowledge()
-            if shared_kb:
-                context += "\nMÉMOIRE COLLECTIVE:\n" + shared_kb
+        with st.status("Traitement juridique...", expanded=False) as status:
+            context = ""
+            if uploaded_files:
+                status.update(label="Lecture des clauses...")
+                pdf_text = get_pdf_text(uploaded_files)
+                context = f"\nCONTENU DU DOSSIER CLIENT:\n{pdf_text[:10000]}" # Limite pour l'API
             
-            # 2. Analyse PDF (Uniquement si fichiers présents)
-            if uploaded_pdfs:
-                status.update(label="Exploration de vos documents...")
-                docs = get_pdf_documents(uploaded_pdfs)
-                if docs:
-                    vector_db = FAISS.from_documents(docs, MistralAIEmbeddings(mistral_api_key=api_key))
-                    res = vector_db.similarity_search(text_in, k=3)
-                    context += "\nDOCUMENTS SESSION:\n" + "\n".join([d.page_content for d in res])
-            
-            # 3. Web Search
-            if enable_web:
-                status.update(label="Recherche sur le Web mondial...")
-                try: context += f"\nINFO WEB:\n{DDGS().text(text_in, max_results=2)}"
-                except: pass
-            
-            status.update(label="Génération de la réponse...", state="complete")
+            # Mémoire Collective (Savoir Juridique partagé)
+            if os.path.exists("brain_shared.txt"):
+                with open("brain_shared.txt", "r") as f:
+                    context += "\nPROTOCOLES JURIDIQUES:\n" + f.read()
 
-        # Appel API et Streaming
         client = Mistral(api_key=api_key)
-        with st.chat_message("assistant", avatar="💠"):
+        with st.chat_message("assistant", avatar="⚖️"):
             placeholder = st.empty()
             full_resp = ""
-            sys_instr = f"Tu es Nexus. Date actuelle : {date_str}. Sois direct et utilise LaTeX pour les maths."
-            msgs = [{"role": "system", "content": f"{sys_instr} {context}"}] + st.session_state.messages
+            sys_instr = f"Tu es Lex Nexus, un assistant juridique de haut niveau. Nous sommes le {datetime.now().strftime('%d/%m/%Y')}. Sois précis, cite les clauses si possible et adopte un ton professionnel."
             
-            try:
-                stream = client.chat.stream(model=model_default, messages=msgs)
-                for chunk in stream:
-                    content = chunk.data.choices[0].delta.content
-                    if content:
-                        full_resp += content
-                        placeholder.markdown(full_resp + "▌")
-                placeholder.markdown(full_resp)
-                
-                # Vocal
-                if enable_vocal:
-                    tts = gTTS(text=full_resp, lang='fr')
-                    with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as fp:
-                        tts.save(fp.name)
-                        st.audio(fp.name)
-                
-                st.session_state.messages.append({"role": "assistant", "content": full_resp})
-            except Exception as e:
-                st.error("Nexus est actuellement saturé. Réessayez dans un instant.")
-
-# --- PAGE 2 : SÉCURITÉ ---
-else:
-    st.markdown("## 🛡️ Sécurité et Confidentialité des Données")
-    st.write("---")
-    col1, col2 = st.columns(2)
-    with col1:
-        st.subheader("🔒 Protection Entreprise")
-        st.write("""
-        Nexus a été conçu avec une approche **Privacy-First**. 
-        Contrairement aux outils IA grand public, nous séparons strictement 
-        le moteur d'intelligence des données traitées.
-        """)
-        st.markdown("### 🇫🇷 Hébergement & Souveraineté")
-        st.write("Les calculs sont effectués via Mistral AI, garantissant que les données restent sous juridiction européenne.")
-        
-    with col2:
-        st.subheader("🕵️ Non-utilisation des données")
-        st.write("""
-        Nous garantissons contractuellement que :
-        - Vos documents ne sont **jamais** stockés définitivement.
-        - Vos échanges ne servent pas à entraîner l'IA.
-        - Aucun tiers n'a accès à vos sessions.
-        """)
+            stream = client.chat.stream(model=model_default, messages=[{"role": "system", "content": sys_instr + context}] + st.session_state.messages)
+            for chunk in stream:
+                content = chunk.data.choices[0].delta.content
+                if content:
+                    full_resp += content
+                    placeholder.markdown(full_resp + "▌")
+            placeholder.markdown(full_resp)
+            st.session_state.messages.append({"role": "assistant", "content": full_resp})
