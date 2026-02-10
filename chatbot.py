@@ -19,160 +19,83 @@ from docx import Document as WordDocument
 st.set_page_config(page_title="Nexus", page_icon="💠", layout="wide")
 
 if "MISTRAL_API_KEY" not in st.secrets or "APP_PASSWORD" not in st.secrets:
-    st.error("⚠️ Configuration manquante. Vérifiez les Secrets.")
+    st.error("⚠️ Configuration manquante.")
     st.stop()
 
 api_key = st.secrets["MISTRAL_API_KEY"]
 correct_password = st.secrets["APP_PASSWORD"]
-model = "pixtral-12b-2409"
 
-# --- LOGIN NEXUS ---
+# --- LOGIN ---
 if "authenticated" not in st.session_state: st.session_state.authenticated = False
 if not st.session_state.authenticated:
-    st.markdown("""
-    <style>
-        .stTextInput input { text-align: center; border-radius: 10px; letter-spacing: 2px; }
-        div[data-testid="stAppViewContainer"] { background-color: #000; }
-    </style>
-    <br><br><br>
-    <h1 style='text-align:center; color: white; font-weight: 200; letter-spacing: 8px; font-size: 3rem;'>N E X U S</h1>
-    <p style='text-align:center; color: #666; font-size: 0.8rem; letter-spacing: 2px;'>SYSTEM ACCESS</p>
-    """, unsafe_allow_html=True)
-    if st.button("INITIALISER") or st.text_input("CODE D'ACCÈS", type="password") == correct_password:
+    st.markdown("<br><br><h1 style='text-align:center; color: white; letter-spacing: 8px;'>N E X U S</h1>", unsafe_allow_html=True)
+    if st.button("INITIALISER") or st.text_input("ACCÈS", type="password") == correct_password:
         st.session_state.authenticated = True
         st.rerun()
     st.stop()
 
 # --- INITIALISATION ---
 if "messages" not in st.session_state:
-    st.session_state.messages = [{"role": "assistant", "content": "Nexus en ligne. Prêt."}]
+    st.session_state.messages = [{"role": "assistant", "content": "Système Nexus synchronisé. Mémoire permanente active."}]
 
-# --- STYLE CSS "3D HYPERSPACE" ---
+# --- STYLE CSS "GLASS & NEON" ---
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap');
     html, body, [class*="css"] { font-family: 'Inter', sans-serif; color: #E0E0E0; }
     
-    /* --- FOND 3D PARALLAXE --- */
     .stApp {
         background: radial-gradient(ellipse at bottom, #1B2735 0%, #090A0F 100%);
-        overflow: hidden;
     }
     
-    .stApp::before {
-        content: ""; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-        background-image: 
-            radial-gradient(white, rgba(255,255,255,.2) 2px, transparent 3px),
-            radial-gradient(white, rgba(255,255,255,.15) 1px, transparent 2px),
-            radial-gradient(white, rgba(255,255,255,.1) 2px, transparent 3px);
-        background-size: 550px 550px, 350px 350px, 250px 250px;
-        background-position: 0 0, 40px 60px, 130px 270px;
-        animation: stars 120s linear infinite; z-index: -2;
+    /* Effet de bordure lumineuse sur les messages */
+    div[data-testid="stChatMessage"] {
+        border-left: 3px solid rgba(0, 150, 255, 0.5);
+        background-color: rgba(255, 255, 255, 0.03) !important;
+        backdrop-filter: blur(15px);
+        border-radius: 0 15px 15px 0 !important;
+        margin-bottom: 10px;
+        transition: all 0.3s ease;
     }
     
-    .stApp::after {
-        content: ""; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-        background-image: 
-            radial-gradient(white, rgba(255,255,255,.8) 2px, transparent 2px),
-            radial-gradient(white, rgba(255,255,255,.6) 1px, transparent 2px);
-        background-size: 300px 300px, 200px 200px;
-        background-position: 0 0, 40px 60px;
-        animation: stars 60s linear infinite; z-index: -1; opacity: 0.6;
+    div[data-testid="stChatMessage"]:hover {
+        border-left: 3px solid #0096ff;
+        background-color: rgba(255, 255, 255, 0.06) !important;
     }
 
-    @keyframes stars {
-        0% { transform: translateY(0) scale(1); }
-        50% { transform: translateY(-500px) scale(1.1); }
-        100% { transform: translateY(-1000px) scale(1); }
-    }
+    [data-testid="stSidebar"] { background-color: rgba(0, 0, 0, 0.7); backdrop-filter: blur(25px); }
     
-    h1 { color: #ffffff; font-weight: 600; text-align: center; letter-spacing: -1px; margin-bottom: 10px; text-shadow: 0 0 20px rgba(0, 150, 255, 0.5); }
-    [data-testid="stSidebar"] { background-color: rgba(5, 5, 10, 0.6); border-right: 1px solid rgba(255, 255, 255, 0.05); backdrop-filter: blur(20px); }
-    
-    .stChatMessage { background-color: transparent !important; border: none !important; }
-    div[data-testid="stChatMessage"][data-testid*="assistant"] > div { 
-        background-color: rgba(20, 20, 30, 0.75) !important; border: 1px solid rgba(100, 200, 255, 0.1) !important; 
-        border-radius: 12px !important; padding: 15px; backdrop-filter: blur(10px);
-        box-shadow: 0 4px 30px rgba(0,0,0,0.3);
-    }
-    div[data-testid="stChatMessage"][data-testid*="user"] > div { 
-        background: linear-gradient(135deg, rgba(50, 50, 90, 0.9), rgba(30, 30, 60, 0.9)) !important; 
-        color: white !important; border-radius: 12px !important; padding: 15px; 
-        backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.1);
-    }
-    
-    .stChatInput textarea { background-color: rgba(10, 10, 15, 0.8) !important; color: white !important; border: 1px solid rgba(255, 255, 255, 0.1) !important; border-radius: 12px !important; backdrop-filter: blur(5px); }
-    #MainMenu {visibility: hidden;} footer {visibility: hidden;} .stDeployButton {display:none;}
-    
-    [data-testid="stAudioInput"] { position: fixed; top: 70px; right: 20px; z-index: 9999; width: fit-content !important; }
-    [data-testid="stAudioInput"] > div { background-color: transparent !important; border: none !important; }
+    /* Bouton micro stylisé */
     [data-testid="stAudioInput"] button {
-        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke-width='1.5' stroke='white'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M12 18.75a6 6 0 0 0 6-6v-1.5m-6 7.5a6 6 0 0 1-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 0 1-3-3V4.5a3 3 0 0 1 6 0v8.25a3 3 0 0 1-3 3Z' /%3E%3C/svg%3E");
-        background-repeat: no-repeat; background-position: center; background-size: 24px;
-        background-color: #1A1A1A !important; border: 1px solid #444 !important; border-radius: 50% !important; width: 55px !important; height: 55px !important; box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+        background-color: #0096ff !important;
+        box-shadow: 0 0 15px rgba(0, 150, 255, 0.6);
     }
-    [data-testid="stAudioInput"] button > div { display: none !important; }
 </style>
 """, unsafe_allow_html=True)
 
-INDEX_FOLDER = "faiss_index_mistral"
+# --- LOGIQUE DE MÉMOIRE ---
+DATA_DIR = "data"
+INDEX_FOLDER = "nexus_permanent_index"
 
-# --- FONCTIONS ---
-def encode_image(uploaded_file):
-    return base64.b64encode(uploaded_file.getvalue()).decode('utf-8')
-
-def get_pdf_documents(uploaded_files):
+def load_permanent_data():
+    if not os.path.exists(DATA_DIR):
+        os.makedirs(DATA_DIR)
+    
+    files = [os.path.join(DATA_DIR, f) for f in os.listdir(DATA_DIR) if f.endswith('.pdf')]
+    if not files: return None
+    
     all_docs = []
-    if not isinstance(uploaded_files, list): uploaded_files = [uploaded_files]  
-    for pdf_file in uploaded_files:
-        try:
-            reader = PdfReader(pdf_file)
-            filename = pdf_file.name
-            for i, page in enumerate(reader.pages):
-                text = page.extract_text()
-                if text: all_docs.append(LangChainDocument(page_content=text, metadata={"source": filename, "page": i + 1}))
-        except: continue
+    for f in files:
+        reader = PdfReader(f)
+        for i, page in enumerate(reader.pages):
+            text = page.extract_text()
+            if text: all_docs.append(LangChainDocument(page_content=text, metadata={"source": os.path.basename(f), "page": i+1}))
     return all_docs
 
+# --- FONCTIONS SYSTÈME ---
 def get_vector_store(documents, _api_key):
     embeddings = MistralAIEmbeddings(mistral_api_key=_api_key)
-    if os.path.exists(INDEX_FOLDER):
-        try: return FAISS.load_local(INDEX_FOLDER, embeddings, allow_dangerous_deserialization=True)
-        except: pass
-    try:
-        text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
-        splits = text_splitter.split_documents(documents)
-        vector_store = FAISS.from_documents(splits, embeddings)
-        vector_store.save_local(INDEX_FOLDER)
-        return vector_store
-    except: return None
-
-def create_word_docx(messages):
-    doc = WordDocument()
-    doc.add_heading('Rapport NEXUS', 0)
-    for msg in messages:
-        role = "NEXUS" if msg["role"] == "assistant" else "UTILISATEUR"
-        doc.add_heading(role, level=2)
-        doc.add_paragraph(msg["content"])
-        doc.add_paragraph("_" * 20)
-    buffer = io.BytesIO()
-    doc.save(buffer)
-    buffer.seek(0)
-    return buffer
-
-def text_to_speech(text):
-    try:
-        tts = gTTS(text=text, lang='fr')
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as fp:
-            tts.save(fp.name)
-            return fp.name
-    except: return None
-
-def search_web(query):
-    try:
-        results = DDGS().text(query, max_results=3)
-        return "\n".join([f"- {r['title']}: {r['body']}" for r in results])
-    except: return "Pas de résultats web."
+    return FAISS.from_documents(documents, embeddings)
 
 def transcribe_audio(audio_bytes):
     r = sr.Recognizer()
@@ -184,108 +107,78 @@ def transcribe_audio(audio_bytes):
 
 # --- SIDEBAR ---
 with st.sidebar:
-    st.markdown("<h3 style='color:white; letter-spacing:2px; text-align:center;'>N E X U S</h3>", unsafe_allow_html=True)
-    st.markdown("<hr style='margin:10px 0; border-color:#333;'>", unsafe_allow_html=True)
+    st.title("💠 NEXUS OMNI")
     
-    uploaded_pdfs = st.file_uploader("Sources (PDF)", type="pdf", accept_multiple_files=True)
-    uploaded_img = st.file_uploader("Visuel (IMG)", type=["jpg", "png"])
+    # SÉLECTEUR DE MODÈLE
+    power_mode = st.select_slider("MODE PUISSANCE", options=["Vitesse", "Équilibre", "Maximum"])
+    model_map = {"Vitesse": "open-mistral-nemo", "Équilibre": "mistral-small-latest", "Maximum": "mistral-large-latest"}
+    chosen_model = model_map[power_mode]
     
-    st.markdown("<br>", unsafe_allow_html=True)
-    col1, col2 = st.columns(2)
-    with col1: enable_web = st.toggle("Net", value=False)
-    with col2: enable_audio_out = st.toggle("Vocal", value=False)
+    st.divider()
+    uploaded_pdfs = st.file_uploader("Ajouter PDFs temporaires", type="pdf", accept_multiple_files=True)
+    enable_web = st.toggle("🌍 Accès Web direct", value=False)
+    enable_vocal = st.toggle("🔊 Réponse Vocale", value=False)
     
-    st.markdown("<br>", unsafe_allow_html=True)
-    if len(st.session_state.messages) > 1:
-        docx_file = create_word_docx(st.session_state.messages)
-        st.download_button("📄 Export Word", data=docx_file, file_name="Nexus_Rapport.docx", mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document", use_container_width=True)
-
-    if st.button("🔴 Purger Mémoire", type="primary", use_container_width=True):
+    if st.button("🗑️ PURGER SESSION"):
         st.session_state.messages = []
-        if os.path.exists(INDEX_FOLDER): shutil.rmtree(INDEX_FOLDER)
         st.rerun()
 
-# --- MAIN ---
-st.title("Nexus")
+# --- TRAITEMENT DES DONNÉES ---
+perm_docs = load_permanent_data()
+temp_docs = get_pdf_documents(uploaded_pdfs) if uploaded_pdfs else []
+final_docs = (perm_docs or []) + (temp_docs or [])
 
 vector_db = None
-if uploaded_pdfs:
-    raw = get_pdf_documents(uploaded_pdfs)
-    if raw:
-        vector_db = get_vector_store(raw, api_key)
-        if vector_db: st.toast(f"{len(uploaded_pdfs)} fichiers intégrés.", icon="💠")
+if final_docs:
+    vector_db = get_vector_store(final_docs, api_key)
 
+# --- CHAT INTERFACE ---
 for msg in st.session_state.messages:
-    with st.chat_message(msg["role"], avatar="▫️" if msg["role"]=="user" else "💠"):
+    with st.chat_message(msg["role"], avatar="💠" if msg["role"]=="assistant" else "▫️"):
         st.markdown(msg["content"])
 
-audio_val = st.audio_input("🎙️")
-text_val = st.chat_input("Ordre pour Nexus...")
+audio_in = st.audio_input("🎙️")
+text_in = st.chat_input("Commandez Nexus...")
 
-final_question = None
-if audio_val:
-    with st.spinner("Analyse audio..."):
-        transcribed = transcribe_audio(audio_val)
-        if transcribed: final_question = transcribed
-elif text_val:
-    final_question = text_val
+query = None
+if audio_in:
+    query = transcribe_audio(audio_in)
+elif text_in:
+    query = text_in
 
-if final_question:
-    st.session_state.messages.append({"role": "user", "content": final_question})
+if query:
+    st.session_state.messages.append({"role": "user", "content": query})
     with st.chat_message("user", avatar="▫️"):
-        st.markdown(final_question)
-        if uploaded_img: st.image(uploaded_img, width=200)
+        st.markdown(query)
 
-    context_str = ""
-    sources = []
+    # RECHERCHE CONTEXTE
+    context = ""
+    if vector_db:
+        docs = vector_db.similarity_search(query, k=5)
+        context = "\nDOCUMENTS:\n" + "\n".join([d.page_content for d in docs])
     
-    if vector_db and not uploaded_img:
-        docs = vector_db.similarity_search(final_question, k=4)
-        context_str += "\nNEXUS DATABASE:\n" + "\n".join([d.page_content for d in docs])
-        sources = list(set([f"{d.metadata['source']} (p.{d.metadata['page']})" for d in docs]))
-
     if enable_web:
-        context_str += f"\nNEXUS WEB SEARCH:\n{search_web(final_question)}"
+        context += f"\nWEB:\n{DDGS().text(query, max_results=3)}"
 
-    # --- INSTRUCTION CRITIQUE CORRIGÉE (Raw String 'r') ---
-    base_instr = r"""
-    Tu es Nexus, une IA avancée. Ton style est Précis, Synthétique, Élégant et Direct.
-    
-    RÈGLE CRITIQUE POUR L'AFFICHAGE (LaTeX) :
-    Streamlit NE PEUT PAS lire le LaTeX brut. Tu DOIS encadrer TOUTES les expressions mathématiques ou symboliques.
-    1. Pour les formules INTÉGRÉES au texte, utilise UN SEUL dollar de chaque côté.
-       -> MAUVAIS : "Si la demande monte (\uparrow)..."
-       -> BON : "Si la demande monte ($\uparrow$)..."
-    2. Pour les équations COMPLÈTES ou importantes, utilise DEUX dollars pour les centrer.
-       -> BON : $$ E = mc^2 $$
-    3. N'écris JAMAIS de commandes LaTeX (comme \frac, \rightarrow, \uparrow, \partial) sans dollars autour.
-    """
-    
-    if uploaded_img:
-        sys_prompt = f"Vision active. {base_instr}"
-        base64_img = encode_image(uploaded_img)
-        msgs_api = [{"role": "user", "content": [{"type": "text", "text": final_question}, {"type": "image_url", "image_url": f"data:image/jpeg;base64,{base64_img}"}]}]
-    else:
-        msgs_api = [{"role": "system", "content": f"{base_instr} Données: {context_str}"}] + [m for m in st.session_state.messages if m["role"]!="system"]
-
+    # GÉNÉRATION
     client = Mistral(api_key=api_key)
     with st.chat_message("assistant", avatar="💠"):
         placeholder = st.empty()
         full_resp = ""
-        try:
-            stream = client.chat.stream(model=model, messages=msgs_api)
-            for chunk in stream:
-                content = chunk.data.choices[0].delta.content
-                if content:
-                    full_resp += content
-                    placeholder.markdown(full_resp + "▌")
-            
-            placeholder.markdown(full_resp)
-            if sources: st.caption(f"Sources Nexus: {', '.join(sources)}")
-            if enable_audio_out:
-                audio_file = text_to_speech(full_resp)
-                if audio_file: st.audio(audio_file)
-            
-            st.session_state.messages.append({"role": "assistant", "content": full_resp})
-        except Exception as e:
-            st.error(f"Erreur Nexus : {e}")
+        msgs = [{"role": "system", "content": r"Tu es Nexus. Réponds avec précision. LaTeX obligatoire pour maths : $$x^2$$"}] + st.session_state.messages
+        
+        stream = client.chat.stream(model=chosen_model, messages=msgs)
+        for chunk in stream:
+            content = chunk.data.choices[0].delta.content
+            if content:
+                full_resp += content
+                placeholder.markdown(full_resp + "▌")
+        placeholder.markdown(full_resp)
+        
+        if enable_vocal:
+            tts = gTTS(text=full_resp, lang='fr')
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as fp:
+                tts.save(fp.name)
+                st.audio(fp.name)
+        
+        st.session_state.messages.append({"role": "assistant", "content": full_resp})
