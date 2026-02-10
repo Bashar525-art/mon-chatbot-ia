@@ -9,3 +9,6 @@ gTTS
 SpeechRecognition
 duckduckgo-search
 python-docx
+faiss-cpu
+fpdf
+
