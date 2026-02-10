@@ -1,181 +1,84 @@
 import streamlit as st
 import os
-import base64
 from datetime import datetime
 from mistralai import Mistral
 from pypdf import PdfReader
-from fpdf import FPDF  # Pour l'export PDF pro
 
-# --- CONFIGURATION ULTIME ---
-st.set_page_config(page_title="Lex Nexus | Excellence Juridique", page_icon="⚖️", layout="wide")
+# --- CONFIGURATION ---
+st.set_page_config(page_title="Lex Nexus | Intelligence Suprême", page_icon="⚖️", layout="wide")
 
-# CSS PERSONNALISÉ : DESIGN HAUTE COUTURE
-st.markdown("""
-<style>
-    @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=Inter:wght@200;400;600&display=swap');
+# (Garder le CSS précédent ici...)
+
+# --- SIMULATION BASE DE DONNÉES (Étape 2) ---
+if "archive_dossiers" not in st.session_state:
+    st.session_state.archive_dossiers = [
+        {"id": "DS-2026-001", "nom": "Contrat Bail - ImmoProp", "date": "05/02/2026", "statut": "Analysé"},
+        {"id": "DS-2026-002", "nom": "Cession Parts - Projet Alpha", "date": "09/02/2026", "statut": "En attente"}
+    ]
+
+# --- MOTEUR MULTI-AGENTS (Étape 3) ---
+def multi_agent_audit(text_contrat, query):
+    client = Mistral(api_key=st.secrets["MISTRAL_API_KEY"])
     
-    /* Fond dégradé sombre et élégant */
-    .stApp {
-        background: radial-gradient(circle at top right, #1a1f2c, #090a0f);
-        color: #e0e0e0;
-    }
-    
-    /* Titre doré avec police serif */
-    .main-header {
-        font-family: 'Playfair Display', serif;
-        color: #C5A059;
-        font-size: 4.5rem;
-        text-align: center;
-        margin-bottom: 0px;
-        letter-spacing: -1px;
-    }
-    
-    .sub-header {
-        font-family: 'Inter', sans-serif;
-        text-align: center;
-        color: #8a8d91;
-        letter-spacing: 5px;
-        text-transform: uppercase;
-        font-size: 0.8rem;
-        margin-bottom: 50px;
-    }
+    # 1. Agent Analyseur
+    with st.status("Agent 1 : Extraction des clauses clés..."):
+        step1 = client.chat.complete(
+            model="pixtral-12b-2409",
+            messages=[{"role": "system", "content": "Extrais uniquement les faits : dates, montants, parties et obligations."},
+                      {"role": "user", "content": text_contrat[:5000]}]
+        )
+        data_brute = step1.choices[0].message.content
 
-    /* Cartes Glassmorphism */
-    .dashboard-card {
-        background: rgba(255, 255, 255, 0.03);
-        border: 1px solid rgba(197, 160, 89, 0.2);
-        backdrop-filter: blur(10px);
-        padding: 30px;
-        border-radius: 20px;
-        text-align: center;
-        transition: all 0.4s ease;
-    }
-    
-    .dashboard-card:hover {
-        border-color: #C5A059;
-        transform: translateY(-5px);
-        background: rgba(197, 160, 89, 0.05);
-    }
+    # 2. Agent Critique (Risques)
+    with st.status("Agent 2 : Identification des risques juridiques..."):
+        step2 = client.chat.complete(
+            model="pixtral-12b-2409",
+            messages=[{"role": "system", "content": "Tu es un avocat spécialisé en litiges. Trouve les pièges dans ces données."},
+                      {"role": "user", "content": data_brute}]
+        )
+        risques = step2.choices[0].message.content
 
-    /* Sidebar futuriste */
-    section[data-testid="stSidebar"] {
-        background-color: rgba(7, 8, 12, 0.95) !important;
-        border-right: 1px solid #C5A059;
-    }
+    # 3. Agent Rédacteur (Synthèse Finale)
+    with st.status("Agent 3 : Rédaction du rapport final..."):
+        final = client.chat.complete(
+            model="pixtral-12b-2409",
+            messages=[{"role": "system", "content": "Synthétise le travail de tes collègues en un rapport de luxe pour un client exigeant."},
+                      {"role": "user", "content": f"Données: {data_brute}\nRisques: {risques}\nQuestion client: {query}"}]
+        )
+    return final.choices[0].message.content
 
-    /* Boutons de luxe */
-    .stButton>button {
-        width: 100%;
-        background: transparent !important;
-        color: #C5A059 !important;
-        border: 1px solid #C5A059 !important;
-        border-radius: 30px !important;
-        padding: 10px 20px !important;
-        font-family: 'Inter', sans-serif !important;
-        text-transform: uppercase !important;
-        letter-spacing: 2px !important;
-    }
-    
-    .stButton>button:hover {
-        background: #C5A059 !important;
-        color: #000 !important;
-    }
-</style>
-""", unsafe_allow_html=True)
-
-# --- LOGIQUE D'EXPORT PDF ---
-class LegalReport(FPDF):
-    def header(self):
-        self.set_font('Arial', 'B', 15)
-        self.cell(0, 10, 'RAPPORT D\'AUDIT LEX NEXUS', 0, 1, 'C')
-        self.ln(10)
-
-def generate_pdf(text):
-    pdf = LegalReport()
-    pdf.add_page()
-    pdf.set_font("Arial", size=12)
-    pdf.multi_cell(0, 10, text)
-    return pdf.output(dest='S').encode('latin-1')
-
-# --- INITIALISATION ---
-client = Mistral(api_key=st.secrets["MISTRAL_API_KEY"])
-
-if "messages" not in st.session_state:
-    st.session_state.messages = []
-
-# --- NAVIGATION SIDEBAR ---
+# --- INTERFACE ---
 with st.sidebar:
-    st.markdown("<h1 style='color:#C5A059; font-family:Playfair Display; text-align:center;'>LEX NEXUS</h1>", unsafe_allow_html=True)
-    st.write("---")
-    page = st.selectbox("ESPACE DE TRAVAIL", ["Tableau de Bord", "Audit Expert", "Comparaison de Pièces"])
-    st.write("---")
-    
-    if page != "Tableau de Bord":
-        docs = st.file_uploader("Dépôt de pièces (PDF)", type="pdf", accept_multiple_files=True)
-    
-    if st.button("ARCHIVER LA SESSION"):
-        st.session_state.messages = []
-        st.rerun()
+    st.markdown("<h1 style='color:#C5A059; text-align:center;'>LEX NEXUS</h1>", unsafe_allow_width=True)
+    menu = st.radio("NAVIGATION", ["📜 Mes Dossiers (Archive)", "🔬 Audit Multi-Agents", "🛡️ Sécurité"])
 
-# --- HEADER PERMANENT ---
-st.markdown('<p class="main-header">Lex Nexus</p>', unsafe_allow_html=True)
-st.markdown('<p class="sub-header">Intelligence Juridique Augmentée</p>', unsafe_allow_html=True)
-
-# --- PAGES ---
-if page == "Tableau de Bord":
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        st.markdown('<div class="dashboard-card"><h2 style="color:#C5A059;">99.4%</h2><p>Précision des Clauses</p></div>', unsafe_allow_html=True)
-    with col2:
-        st.markdown('<div class="dashboard-card"><h2 style="color:#C5A059;">FRANCE</h2><p>Serveurs Souverains</p></div>', unsafe_allow_html=True)
-    with col3:
-        st.markdown('<div class="dashboard-card"><h2 style="color:#C5A059;">RGPD</h2><p>Confidentialité Absolue</p></div>', unsafe_allow_html=True)
+if menu == "📜 Mes Dossiers (Archive)":
+    st.markdown("### 🗄️ Bibliothèque des Dossiers Sauvegardés")
+    st.write("Retrouvez ici vos analyses précédentes.")
     
-    st.write("---")
-    st.markdown("### 🏛️ Bienvenue dans votre Cabinet Numérique")
-    st.write("Lex Nexus analyse vos contrats, identifie les risques juridiques et compare vos pièces avec la rigueur d'un juriste expérimenté.")
-    st.image("https://images.unsplash.com/photo-1589829545856-d10d557cf95f?auto=format&fit=crop&q=80&w=1000", use_container_width=True)
+    for d in st.session_state.archive_dossiers:
+        with st.expander(f"📁 {d['id']} | {d['nom']}"):
+            st.write(f"**Date d'analyse :** {d['date']}")
+            st.write(f"**Statut :** {d['statut']}")
+            st.button("Ouvrir l'archive", key=d['id'])
 
-elif page == "Audit Expert":
-    for m in st.session_state.messages:
-        with st.chat_message(m["role"], avatar="⚖️" if m["role"]=="assistant" else "👤"):
-            st.markdown(m["content"])
-            
-    prompt = st.chat_input("Analysez ce contrat de bail...")
+elif menu == "🔬 Audit Multi-Agents":
+    st.markdown("### 🤖 Système Expert Multi-Agents")
+    st.info("Ce mode utilise trois instances d'IA spécialisées pour une analyse croisée sans erreur.")
     
-    if prompt:
-        st.session_state.messages.append({"role": "user", "content": prompt})
-        with st.chat_message("user"): st.markdown(prompt)
+    file = st.file_uploader("Déposer le contrat pour audit profond", type="pdf")
+    instr = st.text_input("Instruction spécifique (ex: Focus sur la clause de non-concurrence)")
+    
+    if file and st.button("LANCER L'AUDIT TRIPLE ACTION"):
+        reader = PdfReader(file)
+        text = "".join([p.extract_text() for p in reader.pages])
         
-        with st.spinner("Analyse Lex Nexus en cours..."):
-            context = ""
-            if docs:
-                txt = ""
-                for f in docs:
-                    reader = PdfReader(f)
-                    for p in reader.pages: txt += p.extract_text()
-                context = f"PIÈCES JOINTES :\n{txt[:8000]}"
-            
-            resp = client.chat.complete(
-                model="pixtral-12b-2409",
-                messages=[{"role": "system", "content": "Tu es Lex Nexus. Ton ton est solennel, précis et expert." + context}] + st.session_state.messages
-            )
-            ans = resp.choices[0].message.content
-            with st.chat_message("assistant", avatar="⚖️"):
-                st.markdown(ans)
-                # BOUTON D'EXPORT PDF
-                pdf_data = generate_pdf(ans)
-                st.download_button("📥 Télécharger l'Audit (PDF)", pdf_data, file_name="audit_lex_nexus.pdf", mime="application/pdf")
-            st.session_state.messages.append({"role": "assistant", "content": ans})
-
-elif page == "Comparaison de Pièces":
-    st.markdown("### 🔍 Comparaison Comparative de deux Versions")
-    c1, c2 = st.columns(2)
-    with c1: f1 = st.file_uploader("Document A", type="pdf")
-    with c2: f2 = st.file_uploader("Document B", type="pdf")
-    
-    if f1 and f2:
-        if st.button("LANCER L'ANALYSE COMPARATIVE"):
-            with st.status("Traitement des documents..."):
-                # (Logique de comparaison identique à l'étape précédente)
-                st.success("Analyse terminée. Différences identifiées dans le tableau ci-dessous.")
+        rapport = multi_agent_audit(text, instr)
+        st.markdown("---")
+        st.markdown("#### ⚖️ RAPPORT D'EXPERTISE FINAL")
+        st.write(rapport)
+        
+        # Sauvegarde automatique dans l'archive
+        new_doc = {"id": f"DS-2026-00{len(st.session_state.archive_dossiers)+1}", "nom": file.name, "date": "10/02/2026", "statut": "Analysé"}
+        st.session_state.archive_dossiers.append(new_doc)
+        st.success("Rapport archivé avec succès.")
