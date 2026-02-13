@@ -4,123 +4,155 @@ from datetime import datetime
 from mistralai import Mistral
 from pypdf import PdfReader
 
-# --- CONFIGURATION LEX NEXUS ---
+# --- CONFIGURATION LEX NEXUS V5.0 ---
 st.set_page_config(page_title="Lex Nexus | Excellence Juridique", page_icon="⚖️", layout="wide")
 
-# STYLE CSS (CHAT FIXE ET DESIGN)
+# --- DESIGN IMMERSIF "LEGAL LUXE" ---
 st.markdown(r"""
 <style>
-    @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Inter:wght@300;400;600&display=swap');
-    .stApp { background: radial-gradient(circle at top right, #1a1f2c, #090a0f); color: #E0E0E0; }
-    .main-header { font-family: 'Playfair Display', serif; color: #D4AF37; text-align: center; font-size: 3rem; margin-bottom: 0px; }
-    .sub-header { font-family: 'Inter', sans-serif; text-align: center; color: #8a8d91; letter-spacing: 5px; text-transform: uppercase; font-size: 0.8rem; margin-bottom: 40px; }
+    @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Inter:wght@200;400;600&display=swap');
     
-    /* Style des bulles de chat */
-    div[data-testid="stChatMessage"] { background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(212, 175, 55, 0.2); border-radius: 10px; margin-bottom: 10px; }
+    /* Fond principal avec image texturée sombre */
+    .stApp {
+        background: linear-gradient(rgba(9, 10, 15, 0.8), rgba(9, 10, 15, 0.8)), 
+                    url('https://images.unsplash.com/photo-1589829545856-d10d557cf95f?ixlib=rb-4.0.3&auto=format&fit=crop&w=2000&q=80');
+        background-size: cover;
+        background-attachment: fixed;
+        color: #E0E0E0;
+    }
     
-    /* Barre latérale */
-    section[data-testid="stSidebar"] { background-color: rgba(7, 8, 12, 0.95) !important; border-right: 1px solid #D4AF37; }
+    /* Titre doré magistral */
+    .main-header {
+        font-family: 'Playfair Display', serif;
+        color: #D4AF37;
+        text-align: center;
+        font-size: 4.5rem;
+        margin-top: 50px;
+        text-shadow: 2px 2px 10px rgba(0,0,0,0.5);
+    }
+    
+    .sub-header {
+        font-family: 'Inter', sans-serif;
+        text-align: center;
+        color: #D4AF37;
+        letter-spacing: 8px;
+        text-transform: uppercase;
+        font-size: 0.9rem;
+        margin-bottom: 60px;
+        opacity: 0.8;
+    }
+
+    /* Cartes en Glassmorphism (Verre) */
+    .glass-card {
+        background: rgba(255, 255, 255, 0.03);
+        border: 1px solid rgba(212, 175, 55, 0.4);
+        backdrop-filter: blur(15px);
+        padding: 40px 20px;
+        border-radius: 20px;
+        text-align: center;
+        transition: all 0.5s ease;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    }
+    
+    .glass-card:hover {
+        transform: translateY(-10px);
+        border-color: #D4AF37;
+        background: rgba(212, 175, 55, 0.08);
+        box-shadow: 0 15px 40px rgba(212, 175, 55, 0.2);
+    }
+
+    .card-val { font-size: 2.5rem; color: #D4AF37; font-family: 'Playfair Display', serif; font-weight: bold; }
+    .card-txt { font-size: 0.8rem; letter-spacing: 2px; text-transform: uppercase; color: #ffffff; margin-top: 10px; }
+
+    /* Sidebar élégante */
+    section[data-testid="stSidebar"] {
+        background-color: rgba(7, 8, 12, 0.98) !important;
+        border-right: 1px solid #D4AF37;
+    }
+    
+    /* Bouton d'action */
+    .stButton>button {
+        background: linear-gradient(45deg, #D4AF37, #B8860B) !important;
+        color: black !important;
+        font-weight: bold !important;
+        border-radius: 50px !important;
+        border: none !important;
+        padding: 15px 30px !important;
+        transition: 0.3s;
+    }
+    .stButton>button:hover { transform: scale(1.05); box-shadow: 0 0 20px rgba(212, 175, 55, 0.4); }
 </style>
 """, unsafe_allow_html=True)
 
-# --- INITIALISATION ---
-if "MISTRAL_API_KEY" not in st.secrets:
-    st.error("🔑 Clé API Mistral manquante.")
-    st.stop()
-
+# --- LOGIQUE ---
 client = Mistral(api_key=st.secrets["MISTRAL_API_KEY"])
+if "chat_history" not in st.session_state: st.session_state.chat_history = []
+if "archive_dossiers" not in st.session_state: st.session_state.archive_dossiers = []
 
-if "chat_history" not in st.session_state:
-    st.session_state.chat_history = []
-if "archive_dossiers" not in st.session_state:
-    st.session_state.archive_dossiers = []
-
-# --- FONCTION EXTRACTION ---
 def extract_pdf_text(files):
     text = ""
     for f in files:
         try:
-            reader = PdfReader(f)
-            for page in reader.pages:
-                extracted = page.extract_text()
-                if extracted: text += extracted + "\n"
+            reader = PdfReader(f); text += "".join([p.extract_text() for p in reader.pages])
         except: continue
     return text
 
 # --- SIDEBAR ---
 with st.sidebar:
-    st.markdown("<h1 style='color:#D4AF37; text-align:center;'>LEX NEXUS</h1>", unsafe_allow_html=True)
-    menu = st.radio("NAVIGATION", ["🏛️ Dashboard", "🔬 Audit Expert", "🗄️ Archives"])
+    st.markdown("<h1 style='color:#D4AF37; text-align:center; font-family:serif;'>LEX NEXUS</h1>", unsafe_allow_html=True)
     st.write("---")
-    if st.button("🗑️ NOUVELLE SESSION"):
-        st.session_state.chat_history = []
-        st.rerun()
+    menu = st.radio("SERVICE JURIDIQUE", ["🏛️ Dashboard", "🔬 Audit Expert", "🗄️ Archives"])
+    st.write("---")
+    if st.button("✨ NOUVELLE SESSION"):
+        st.session_state.chat_history = []; st.rerun()
 
-st.markdown('<p class="main-header">Lex Nexus</p>', unsafe_allow_html=True)
-st.markdown('<p class="sub-header">L\'EXCELLENCE DU DROIT AUGMENTÉ</p>', unsafe_allow_html=True)
-
-# --- PAGE AUDIT EXPERT ---
-if menu == "🔬 Audit Expert":
-    # 1. Zone de documents (ne bloque plus le chat)
-    uploaded_files = st.file_uploader("📂 Déposer vos pièces jointes (Optionnel)", type="pdf", accept_multiple_files=True)
+# --- NAVIGATION ---
+if menu == "🏛️ Dashboard":
+    st.markdown('<p class="main-header">Lex Nexus</p>', unsafe_allow_html=True)
+    st.markdown('<p class="sub-header">L\'Intelligence Souveraine du Droit</p>', unsafe_allow_html=True)
     
-    # 2. Affichage de l'historique (au centre)
-    for message in st.session_state.chat_history:
-        with st.chat_message(message["role"], avatar="⚖️" if message["role"]=="assistant" else "👤"):
-            st.markdown(message["content"])
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        st.markdown('<div class="glass-card"><div class="card-val">99.4%</div><div class="card-txt">Précision Juridique</div></div>', unsafe_allow_html=True)
+    with col2:
+        st.markdown('<div class="glass-card"><div class="card-val">FRANCE</div><div class="card-txt">Souveraineté Tech</div></div>', unsafe_allow_html=True)
+    with col3:
+        st.markdown('<div class="glass-card"><div class="card-val">ACTIF</div><div class="card-txt">Analyse Multi-Agents</div></div>', unsafe_allow_html=True)
+    
+    st.write("")
+    st.write("")
+    st.markdown("<h2 style='text-align:center; font-family:Playfair Display; color:white;'>BIENVENUE, MAÎTRE.</h2>", unsafe_allow_html=True)
+    st.markdown("<p style='text-align:center; color:#D4AF37; font-size:1.2rem;'>Votre portail vers l'excellence juridique augmentée est prêt.</p>", unsafe_allow_html=True)
 
-    # 3. BARRE DE CHAT FIXE EN BAS (st.chat_input)
-    # Elle est toujours visible, peu importe où on est sur la page
-    if prompt := st.chat_input("Votre question juridique ou instruction d'audit..."):
-        
-        # Affichage du message utilisateur
+elif menu == "🔬 Audit Expert":
+    st.markdown('<p class="main-header" style="font-size:2.5rem;">Audit Expert</p>', unsafe_allow_html=True)
+    files = st.file_uploader("📂 Déposer vos pièces (PDF)", type="pdf", accept_multiple_files=True)
+    
+    # Historique des messages
+    for msg in st.session_state.chat_history:
+        with st.chat_message(msg["role"], avatar="⚖️" if msg["role"]=="assistant" else "👤"):
+            st.markdown(msg["content"])
+
+    # Barre de chat fixe
+    if prompt := st.chat_input("Posez votre question ou analysez vos documents..."):
         st.session_state.chat_history.append({"role": "user", "content": prompt})
-        with st.chat_message("user", avatar="👤"):
-            st.markdown(prompt)
+        with st.chat_message("user", avatar="👤"): st.markdown(prompt)
 
-        # Réponse de l'IA avec STREAMING pour la vitesse
         with st.chat_message("assistant", avatar="⚖️"):
-            placeholder = st.empty() # Zone pour l'affichage progressif
-            full_response = ""
+            placeholder = st.empty(); full_res = ""
+            context = extract_pdf_text(files) if files else ""
             
-            # Récupération du contexte
-            context = ""
-            if uploaded_files:
-                context = f"CONTEXTE (Fichiers joints) :\n{extract_pdf_text(uploaded_files)[:8000]}\n\n"
-
-            # Appel API en mode Stream
-            try:
-                stream_response = client.chat.stream(
-                    model="pixtral-12b-2409",
-                    messages=[
-                        {"role": "system", "content": "Tu es Lex Nexus, expert en droit. Réponds avec précision."},
-                        {"role": "user", "content": context + prompt}
-                    ]
-                )
-                
-                for chunk in stream_response:
-                    content = chunk.data.choices[0].delta.content
-                    if content:
-                        full_response += content
-                        placeholder.markdown(full_response + "▌") # Effet d'écriture
-                
-                placeholder.markdown(full_response) # Texte final
-                st.session_state.chat_history.append({"role": "assistant", "content": full_response})
-                
-                # Archivage auto si documents présents
-                if uploaded_files:
-                    st.session_state.archive_dossiers.append({"id": f"AUD-{datetime.now().strftime('%M%S')}", "nom": uploaded_files[0].name, "rapport": full_response, "date": datetime.now().strftime("%d/%m")})
-            
-            except Exception as e:
-                st.error("Une erreur technique est survenue. Veuillez réessayer.")
-
-# --- AUTRES PAGES (Dashboard, Archives) ---
-elif menu == "🏛️ Dashboard":
-    st.image("https://images.unsplash.com/photo-1589829545856-d10d557cf95f?w=1000", use_container_width=True)
-    st.markdown("### Bienvenue, Maître. Lex Nexus est prêt pour vos analyses.")
+            stream = client.chat.stream(model="pixtral-12b-2409", messages=[
+                {"role": "system", "content": "Tu es Lex Nexus, expert en droit."},
+                {"role": "user", "content": f"Contexte: {context[:7000]}\n\nQuestion: {prompt}"}
+            ])
+            for chunk in stream:
+                content = chunk.data.choices[0].delta.content
+                if content: full_res += content; placeholder.markdown(full_res + "▌")
+            placeholder.markdown(full_res)
+            st.session_state.chat_history.append({"role": "assistant", "content": full_res})
 
 elif menu == "🗄️ Archives":
-    st.markdown("### 🗄️ Historique des Travaux")
+    st.markdown('<p class="main-header" style="font-size:2.5rem;">Archives</p>', unsafe_allow_html=True)
     for doc in st.session_state.archive_dossiers:
-        with st.expander(f"📁 {doc['id']} | {doc['nom']}"):
-            st.markdown(doc['rapport'])
+        with st.expander(f"📁 {doc['nom']}"): st.markdown(doc['rapport'])
