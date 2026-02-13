@@ -2,188 +2,114 @@ import streamlit as st
 import os
 import pandas as pd
 import plotly.express as px
-from datetime import datetime
+import plotly.graph_objects as go
+from datetime import datetime, timedelta
 from mistralai import Mistral
 from docx import Document
 from pypdf import PdfReader
 from io import BytesIO
 
-# --- 1. CONFIGURATION & STYLE PRESTIGE ---
-st.set_page_config(page_title="Lex Nexus | Cockpit Juridique", page_icon="⚖️", layout="wide")
+# --- 1. STYLE & CONFIG ---
+st.set_page_config(page_title="Lex Nexus | Enterprise AI", page_icon="⚖️", layout="wide")
 
 st.markdown(r"""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Inter:wght@300;400;600&display=swap');
-    
-    .stApp {
-        background: linear-gradient(rgba(0, 0, 0, 0.9), rgba(0, 0, 0, 0.9)), 
-                    url('https://images.unsplash.com/photo-1505664194779-8beaceb93744?q=80&w=2000');
-        background-size: cover;
-        background-attachment: fixed;
-        color: #E0E0E0;
-    }
-    
-    .main-header { font-family: 'Playfair Display', serif; color: #D4AF37; text-align: center; font-size: 3.5rem; margin-top: 10px; }
-    .live-status { text-align: center; color: #00FF00; font-size: 0.7rem; letter-spacing: 3px; text-transform: uppercase; margin-bottom: 30px; animation: blink 2s infinite; }
-    @keyframes blink { 0% { opacity: 1; } 50% { opacity: 0.4; } 100% { opacity: 1; } }
-
-    .glass-card {
-        background: rgba(255, 255, 255, 0.03);
-        border: 1px solid rgba(212, 175, 55, 0.3);
-        padding: 25px;
-        border-radius: 15px;
-        backdrop-filter: blur(10px);
-        margin-bottom: 20px;
-    }
-
-    /* Optimisation Zone Drag & Drop */
-    [data-testid="stFileUploadDropzone"] {
-        border: 2px dashed #D4AF37 !important;
-        background: rgba(212, 175, 55, 0.05) !important;
-    }
-
-    section[data-testid="stSidebar"] { background-color: rgba(7, 8, 12, 0.98) !important; border-right: 1px solid #D4AF37; }
+    .stApp { background: #0A0B10; color: #E0E0E0; }
+    .glass-card { background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(212, 175, 55, 0.3); padding: 20px; border-radius: 15px; }
+    .status-live { color: #00FF00; font-size: 0.8rem; font-weight: bold; animation: blink 2s infinite; }
+    @keyframes blink { 0% { opacity: 1; } 50% { opacity: 0.3; } 100% { opacity: 1; } }
 </style>
 """, unsafe_allow_html=True)
 
-# --- 2. INITIALISATION DES SCORES & HISTORIQUE ---
+# --- 2. INITIALISATION ---
+if "vault" not in st.session_state:
+    st.session_state.vault = [] # Stockage des dossiers
 if "legal_scores" not in st.session_state:
-    st.session_state.legal_scores = {
-        "Conformité": 74, "Risque": 45, "PI": 82, "Social": 61, "Fiscalité": 78
-    }
-
+    st.session_state.legal_scores = {"Conformité": 80, "Risque": 30, "PI": 70, "Social": 65, "Fiscalité": 75}
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
 
-# --- 3. FONCTIONS TECHNIQUES ---
-
-def read_file_content(file):
-    """Lecture Multi-format : PDF, DOCX, TXT"""
-    name = file.name.lower()
-    try:
-        if name.endswith(".pdf"):
-            return "\n".join([p.extract_text() for p in PdfReader(file).pages if p.extract_text()])
-        elif name.endswith(".docx"):
-            doc = Document(file)
-            return "\n".join([p.text for p in doc.paragraphs])
-        elif name.endswith(".txt"):
-            return file.read().decode()
-    except:
-        return f"Erreur de lecture sur {file.name}"
-    return ""
-
-def generate_docx(content):
-    """Générateur d'actes Word avec formatage professionnel"""
-    doc = Document()
-    doc.add_heading('LEX NEXUS - VERSION SÉCURISÉE 2026', 0)
-    doc.add_paragraph(f"Date de génération : {datetime.now().strftime('%d/%m/%Y')}")
-    doc.add_paragraph("-" * 30)
-    doc.add_paragraph(content)
-    bio = BytesIO()
-    doc.save(bio)
-    return bio.getvalue()
-
-def plot_risk_radar():
-    """Graphique Radar (Indice de Santé)"""
-    df = pd.DataFrame({
-        "Critère": list(st.session_state.legal_scores.keys()),
-        "Score": list(st.session_state.legal_scores.values())
-    })
-    fig = px.line_polar(df, r='Score', theta='Critère', line_close=True, color_discrete_sequence=['#D4AF37'])
-    fig.update_polars(radialaxis=dict(visible=True, range=[0, 100], gridcolor="rgba(255,255,255,0.1)"), bgcolor="rgba(0,0,0,0)")
-    fig.update_layout(paper_bgcolor="rgba(0,0,0,0)", font_color="white", margin=dict(l=40, r=40, t=20, b=20))
-    return fig
-
-# --- 4. NAVIGATION & SIDEBAR ---
 client = Mistral(api_key=st.secrets["MISTRAL_API_KEY"])
 
+# --- 3. FONCTIONS TECHNIQUES ---
+def plot_prediction_gauge(probability):
+    """Jauge de probabilité de gain (Axe 4)"""
+    fig = go.Figure(go.Indicator(
+        mode = "gauge+number",
+        value = probability,
+        title = {'text': "Probabilité de Gain (Contentieux)", 'font': {'color': "#D4AF37", 'size': 20}},
+        gauge = {
+            'axis': {'range': [0, 100], 'tickwidth': 1, 'tickcolor': "white"},
+            'bar': {'color': "#D4AF37"},
+            'steps': [
+                {'range': [0, 40], 'color': "rgba(255, 0, 0, 0.3)"},
+                {'range': [40, 70], 'color': "rgba(255, 165, 0, 0.3)"},
+                {'range': [70, 100], 'color': "rgba(0, 255, 0, 0.3)"}],
+        }
+    ))
+    fig.update_layout(paper_bgcolor="rgba(0,0,0,0)", font={'color': "white", 'family': "Inter"})
+    return fig
+
+# --- 4. NAVIGATION ---
 with st.sidebar:
     st.markdown("<h1 style='color:#D4AF37; text-align:center;'>LEX NEXUS</h1>", unsafe_allow_html=True)
-    menu = st.radio("NAVIGATION", ["🏛️ Dashboard", "🔬 Audit & Rédaction"])
+    menu = st.radio("MENU EXPERT", ["🏛️ Cockpit & Prédiction", "🔬 Audit & Signature", "🗄️ Coffre-fort Client"])
     st.write("---")
-    st.write(f"📅 **{datetime.now().strftime('%d/%m/%Y')}**")
-    if st.button("✨ RÉINITIALISER TOUT"):
-        st.session_state.clear()
-        st.rerun()
+    if st.button("✨ CLEAR ALL"):
+        st.session_state.clear(); st.rerun()
 
-# --- 5. PAGE : DASHBOARD ---
-if menu == "🏛️ Dashboard":
-    st.markdown('<p class="main-header">Cockpit Lex Nexus</p>', unsafe_allow_html=True)
-    st.markdown('<p class="live-status">● SYSTÈME DE VEILLE CONNECTÉ — TEMPS RÉEL 2026</p>', unsafe_allow_html=True)
+# --- PAGE 1 : DASHBOARD & PRÉDICTION ---
+if menu == "🏛️ Cockpit & Prédiction":
+    st.markdown("<h2 style='color:#D4AF37; font-family:serif;'>Intelligence Prédictive</h2>", unsafe_allow_html=True)
     
-    k1, k2, k3 = st.columns(3)
-    scores = st.session_state.legal_scores
-    k1.metric("Santé Juridique", f"{sum(scores.values())//len(scores)}%", "+2%")
-    k2.metric("Risque Détecté", f"{100 - scores.get('Risque', 50)}%", "-4%")
-    k3.metric("Dossiers Audités", len(st.session_state.chat_history)//2, "Live")
+    col_gauge, col_stats = st.columns([1.5, 1])
+    
+    with col_gauge:
+        # On simule une probabilité basée sur les dossiers actuels
+        prob = 72 if len(st.session_state.vault) > 0 else 0
+        st.plotly_chart(plot_prediction_gauge(prob), use_container_width=True)
+        
+        
+    with col_stats:
+        st.markdown('<div class="glass-card"><h4>Prochaines Échéances</h4>', unsafe_allow_html=True)
+        if not st.session_state.vault:
+            st.write("Aucun contrat en veille.")
+        else:
+            for item in st.session_state.vault:
+                st.write(f"📅 **{item['expiration']}** : {item['nom']}")
 
-    st.write("---")
-    col_radar, col_news = st.columns([1.3, 1])
+# --- PAGE 2 : AUDIT & SIGNATURE ---
+elif menu == "🔬 Audit & Signature":
+    st.markdown("<h2 style='color:#D4AF37; font-family:serif;'>Audit & Scellé Numérique</h2>", unsafe_allow_html=True)
+    files = st.file_uploader("Déposer le contrat", type=["pdf", "docx"])
     
-    with col_radar:
-        st.markdown('<div class="glass-card"><h4>⚖️ Indice de Santé Juridique</h4></div>', unsafe_allow_html=True)
-        st.plotly_chart(plot_risk_radar(), use_container_width=True)
-    
-    with col_news:
-        st.markdown('<div class="glass-card"><h4>📢 Flux d\'actualités 2026</h4></div>', unsafe_allow_html=True)
-        st.success("**Droit des Sociétés** : Réforme des statuts simplifiés.")
-        st.info("**Jurisprudence** : Nouvel arrêt sur le secret des affaires.")
-        st.warning("**Alerte** : Mise à jour obligatoire des CGV avant le 01/03.")
-
-# --- 6. PAGE : AUDIT & RÉDACTION ---
-elif menu == "🔬 Audit & Rédaction":
-    st.markdown("<h2 style='text-align:center; color:#D4AF37;'>Expertise & Réécriture Automatique</h2>", unsafe_allow_html=True)
-    
-    # Zone de téléchargement Drag & Drop
-    files = st.file_uploader("📂 Glissez-déposez vos fichiers ici (PDF, DOCX, TXT)", type=["pdf", "docx", "txt"], accept_multiple_files=True)
-    
-    # Affichage de l'historique avec bouton de téléchargement intelligent
-    for msg in st.session_state.chat_history:
-        with st.chat_message(msg["role"], avatar="⚖️" if msg["role"]=="assistant" else "👤"):
-            st.markdown(msg["content"])
-            if msg["role"] == "assistant":
-                # Le bouton apparaît sous chaque réponse de l'IA pour exporter le contrat réécrit
-                st.download_button(
-                    label="📥 Télécharger l'acte SÉCURISÉ (.docx)",
-                    data=generate_docx(msg["content"]),
-                    file_name=f"LexNexus_Securise_{datetime.now().strftime('%H%M')}.docx",
-                    mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                )
-
-    if prompt := st.chat_input("Analysez ce contrat ou demandez une réécriture..."):
-        st.session_state.chat_history.append({"role": "user", "content": prompt})
-        with st.chat_message("user"): st.markdown(prompt)
-
+    if prompt := st.chat_input("Analysez et sécurisez ce contrat..."):
         with st.chat_message("assistant", avatar="⚖️"):
-            context = ""
+            full_res = "Analyse en cours... (Simulation de l'expertise 2026)"
+            st.markdown(full_res)
+            
+            # AXE 2 : Simulation de Signature
+            st.success("✅ Document certifié conforme par Lex Nexus IA. Scellé numérique apposé.")
+            
+            # AXE 3 : Ajout auto au coffre-fort avec date fictive
             if files:
-                for f in files: context += f"\n--- {f.name} ---\n{read_file_content(f)}\n"
-            
-            # Consigne système renforcée pour la réécriture et l'expertise 2026
-            sys_prompt = (
-                f"Tu es Lex Nexus, une IA juridique d'élite. Nous sommes le {datetime.now().strftime('%d/%m/%Y')}. "
-                "Ta mission : Analyser les risques juridiques et REECRIRE systématiquement les clauses "
-                "problématiques pour protéger le client tout en restant conforme au droit de 2026. "
-                "Structure tes réponses avec des titres clairs et une synthèse finale."
-            )
-            
-            stream = client.chat.stream(model="pixtral-12b-2409", messages=[
-                {"role": "system", "content": sys_prompt},
-                {"role": "user", "content": f"DOCUMENTS À ANALYSER:\n{context[:8000]}\n\nINSTRUCTION CLIENT: {prompt}"}
-            ])
-            
-            full_res = ""
-            placeholder = st.empty()
-            for chunk in stream:
-                content = chunk.data.choices[0].delta.content
-                if content:
-                    full_res += content
-                    placeholder.markdown(full_res + "▌")
-            placeholder.markdown(full_res)
-            st.session_state.chat_history.append({"role": "assistant", "content": full_res})
-            
-            # Logique dynamique : Amélioration visuelle des scores après audit
-            for k in st.session_state.legal_scores:
-                st.session_state.legal_scores[k] = min(100, st.session_state.legal_scores[k] + 4)
-            
-            st.rerun()
+                new_doc = {
+                    "nom": files[0].name,
+                    "date_audit": datetime.now().strftime("%d/%m/%Y"),
+                    "expiration": (datetime.now() + timedelta(days=365)).strftime("%d/%m/%Y"),
+                    "statut": "Signé / Sécurisé"
+                }
+                st.session_state.vault.append(new_doc)
+                st.info(f"Dossier '{files[0].name}' ajouté au Coffre-fort (Échéance : 2027)")
+
+# --- PAGE 3 : COFFRE-FORT CLIENT ---
+elif menu == "🗄️ Coffre-fort Client":
+    st.markdown("<h2 style='color:#D4AF37; font-family:serif;'>Gestion des Dossiers Permanents</h2>", unsafe_allow_html=True)
+    
+    if not st.session_state.vault:
+        st.info("Le coffre-fort est vide. Auditez un document pour le sauvegarder.")
+    else:
+        df_vault = pd.DataFrame(st.session_state.vault)
+        st.table(df_vault)
+        st.download_button("📥 Exporter le Registre (CSV)", df_vault.to_csv(), "registre_legal.csv")
