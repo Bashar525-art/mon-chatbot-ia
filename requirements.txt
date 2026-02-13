@@ -13,4 +13,5 @@ faiss-cpu
 fpdf
 plotly
 pandas
+mistralai
 
