@@ -36,6 +36,12 @@ st.markdown(r"""
         margin-bottom: 20px;
     }
 
+    /* Optimisation Zone Drag & Drop */
+    [data-testid="stFileUploadDropzone"] {
+        border: 2px dashed #D4AF37 !important;
+        background: rgba(212, 175, 55, 0.05) !important;
+    }
+
     section[data-testid="stSidebar"] { background-color: rgba(7, 8, 12, 0.98) !important; border-right: 1px solid #D4AF37; }
 </style>
 """, unsafe_allow_html=True)
@@ -67,10 +73,11 @@ def read_file_content(file):
     return ""
 
 def generate_docx(content):
-    """Générateur d'actes Word"""
+    """Générateur d'actes Word avec formatage professionnel"""
     doc = Document()
-    doc.add_heading('LEX NEXUS - DOCUMENT OFFICIEL', 0)
-    doc.add_paragraph(f"Date : {datetime.now().strftime('%d/%m/%Y')}")
+    doc.add_heading('LEX NEXUS - VERSION SÉCURISÉE 2026', 0)
+    doc.add_paragraph(f"Date de génération : {datetime.now().strftime('%d/%m/%Y')}")
+    doc.add_paragraph("-" * 30)
     doc.add_paragraph(content)
     bio = BytesIO()
     doc.save(bio)
@@ -125,17 +132,25 @@ if menu == "🏛️ Dashboard":
 
 # --- 6. PAGE : AUDIT & RÉDACTION ---
 elif menu == "🔬 Audit & Rédaction":
-    st.markdown("<h2 style='text-align:center; color:#D4AF37;'>Expertise & Rédaction</h2>", unsafe_allow_html=True)
+    st.markdown("<h2 style='text-align:center; color:#D4AF37;'>Expertise & Réécriture Automatique</h2>", unsafe_allow_html=True)
     
-    files = st.file_uploader("📂 Déposer des fichiers (PDF, DOCX, TXT)", type=["pdf", "docx", "txt"], accept_multiple_files=True)
+    # Zone de téléchargement Drag & Drop
+    files = st.file_uploader("📂 Glissez-déposez vos fichiers ici (PDF, DOCX, TXT)", type=["pdf", "docx", "txt"], accept_multiple_files=True)
     
+    # Affichage de l'historique avec bouton de téléchargement intelligent
     for msg in st.session_state.chat_history:
         with st.chat_message(msg["role"], avatar="⚖️" if msg["role"]=="assistant" else "👤"):
             st.markdown(msg["content"])
             if msg["role"] == "assistant":
-                st.download_button("📥 Télécharger en Word", generate_docx(msg["content"]), file_name="LexNexus_Document.docx")
+                # Le bouton apparaît sous chaque réponse de l'IA pour exporter le contrat réécrit
+                st.download_button(
+                    label="📥 Télécharger l'acte SÉCURISÉ (.docx)",
+                    data=generate_docx(msg["content"]),
+                    file_name=f"LexNexus_Securise_{datetime.now().strftime('%H%M')}.docx",
+                    mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                )
 
-    if prompt := st.chat_input("Votre demande juridique..."):
+    if prompt := st.chat_input("Analysez ce contrat ou demandez une réécriture..."):
         st.session_state.chat_history.append({"role": "user", "content": prompt})
         with st.chat_message("user"): st.markdown(prompt)
 
@@ -144,10 +159,19 @@ elif menu == "🔬 Audit & Rédaction":
             if files:
                 for f in files: context += f"\n--- {f.name} ---\n{read_file_content(f)}\n"
             
+            # Consigne système renforcée pour la réécriture et l'expertise 2026
+            sys_prompt = (
+                f"Tu es Lex Nexus, une IA juridique d'élite. Nous sommes le {datetime.now().strftime('%d/%m/%Y')}. "
+                "Ta mission : Analyser les risques juridiques et REECRIRE systématiquement les clauses "
+                "problématiques pour protéger le client tout en restant conforme au droit de 2026. "
+                "Structure tes réponses avec des titres clairs et une synthèse finale."
+            )
+            
             stream = client.chat.stream(model="pixtral-12b-2409", messages=[
-                {"role": "system", "content": f"Tu es Lex Nexus. Nous sommes le {datetime.now().strftime('%d/%m/%Y')}. Expertise 2026."},
-                {"role": "user", "content": f"DOCS:\n{context[:8000]}\n\nQUESTION: {prompt}"}
+                {"role": "system", "content": sys_prompt},
+                {"role": "user", "content": f"DOCUMENTS À ANALYSER:\n{context[:8000]}\n\nINSTRUCTION CLIENT: {prompt}"}
             ])
+            
             full_res = ""
             placeholder = st.empty()
             for chunk in stream:
@@ -158,7 +182,8 @@ elif menu == "🔬 Audit & Rédaction":
             placeholder.markdown(full_res)
             st.session_state.chat_history.append({"role": "assistant", "content": full_res})
             
-            # Mise à jour des scores
+            # Logique dynamique : Amélioration visuelle des scores après audit
             for k in st.session_state.legal_scores:
-                st.session_state.legal_scores[k] = min(100, st.session_state.legal_scores[k] + 2)
+                st.session_state.legal_scores[k] = min(100, st.session_state.legal_scores[k] + 4)
+            
             st.rerun()
