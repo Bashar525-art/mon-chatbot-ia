@@ -1,111 +1,95 @@
 import streamlit as st
-import os
 import pandas as pd
 import plotly.express as px
-import plotly.graph_objects as go
-from datetime import datetime, timedelta
+from datetime import datetime
 from mistralai import Mistral
 from docx import Document
 from pypdf import PdfReader
 from io import BytesIO
 
-# --- 1. CONFIGURATION & DESIGN IMMERSIF ---
-st.set_page_config(page_title="Lex Nexus | Supreme Legal AI", page_icon="⚖️", layout="wide")
+# --- 1. CONFIGURATION & CORE ENGINE ---
+st.set_page_config(page_title="Lex Nexus OS", page_icon="⚖️", layout="wide")
 
-st.markdown(r"""
+# Style "Obsidian Night" : Plus léger pour le navigateur
+st.markdown("""
 <style>
-    @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Inter:wght@300;400;600&display=swap');
-    .stApp { background: #07080C; color: #E0E0E0; }
-    .main-header { font-family: 'Playfair Display', serif; color: #D4AF37; text-align: center; font-size: 3.5rem; }
-    .glass-card { background: rgba(255, 255, 255, 0.02); border: 1px solid rgba(212, 175, 55, 0.2); padding: 20px; border-radius: 15px; }
-    .agent-box { border-left: 4px solid #D4AF37; padding-left: 15px; margin: 10px 0; background: rgba(212, 175, 55, 0.05); }
+    .stApp { background-color: #0E1117; color: #E0E0E0; }
+    [data-testid="stMetricValue"] { color: #D4AF37 !important; }
+    .legal-card { 
+        background: rgba(255, 255, 255, 0.05); 
+        padding: 20px; border-radius: 10px; 
+        border-left: 5px solid #D4AF37;
+        margin-bottom: 15px;
+    }
 </style>
 """, unsafe_allow_html=True)
 
-# --- 2. INITIALISATION ---
+# Initialisation silencieuse et robuste
+for key in ["legal_scores", "chat_history", "vault"]:
+    if key not in st.session_state:
+        if key == "legal_scores": st.session_state[key] = {"Conformité": 85, "Risque": 20, "PI": 90}
+        else: st.session_state[key] = []
+
 client = Mistral(api_key=st.secrets["MISTRAL_API_KEY"])
-if "vault" not in st.session_state: st.session_state.vault = []
-if "chat_history" not in st.session_state: st.session_state.chat_history = []
 
-# --- 3. FONCTIONS EXPERTES ---
-
-def generate_flowchart_logic(analysis):
-    """Simule la création d'un schéma logique de contrat"""
-    st.markdown("### 🗺️ Flowchart Logique du Contrat")
-    st.info("Génération du graphe de décision en cours...")
-    st.code("Début -> Signature -> Paiement (J+30) -> Livraison -> Fin", language="mermaid")
-
-def predict_justice_stats():
-    """Module Axe 3 : Open Data Justice"""
-    stats = pd.DataFrame({
-        "Juridiction": ["Paris", "Lyon", "Marseille", "Bordeaux"],
-        "Délai Moyen (mois)": [14, 11, 13, 10],
-        "Indemnité Moyenne (€)": [15200, 12800, 11500, 13100]
-    })
-    return stats
-
-# --- 4. NAVIGATION ---
+# --- 2. LOGIQUE DE NAVIGATION ---
 with st.sidebar:
-    st.markdown("<h1 style='color:#D4AF37; text-align:center;'>LEX NEXUS</h1>", unsafe_allow_html=True)
-    menu = st.radio("MODULES SUPRÊMES", [
-        "🏛️ Cockpit Prédictif", 
-        "⚔️ Conseil de Guerre (Multi-Agents)", 
-        "🤝 Négociation & Redline",
-        "🗄️ Coffre-fort & Échéancier"
-    ])
-    if st.button("✨ RESET SYSTEM"): st.session_state.clear(); st.rerun()
+    st.markdown("<h1 style='color:#D4AF37;'>LEX NEXUS OS</h1>", unsafe_allow_html=True)
+    mode = st.selectbox("MODULE", ["📊 Cockpit", "🔬 Audit & Redline", "⚔️ Conseil de Guerre", "🗄️ Coffre-fort"])
+    st.divider()
+    if st.button("🔌 Redémarrer le Système", use_container_width=True):
+        st.session_state.clear()
+        st.rerun()
 
-# --- PAGE 1 : COCKPIT & DATA JUSTICE ---
-if menu == "🏛️ Cockpit Prédictif":
-    st.markdown("<p class='main-header'>Cockpit Lex Nexus</p>", unsafe_allow_html=True)
-    col_left, col_right = st.columns([1, 1])
+# --- 3. MODULES ---
+
+if mode == "📊 Cockpit":
+    st.title("Tableau de Bord Stratégique")
     
-    with col_left:
-        st.markdown('<div class="glass-card"><h4>📊 Statistiques Jurisprudencielles (Live)</h4></div>', unsafe_allow_html=True)
-        st.table(predict_justice_stats())
-        
-    with col_right:
-        st.markdown('<div class="glass-card"><h4>⚖️ Probabilité de Succès</h4></div>', unsafe_allow_html=True)
-        # Jauge interactive
-        fig = go.Figure(go.Indicator(mode="gauge+number", value=78, gauge={'bar': {'color': "#D4AF37"}}))
-        fig.update_layout(paper_bgcolor="rgba(0,0,0,0)", font={'color': "white"}, height=250)
-        st.plotly_chart(fig, use_container_width=True)
+    # KPIs Flash
+    c1, c2, c3 = st.columns(3)
+    c1.metric("Indice de Santé", f"{sum(st.session_state.legal_scores.values())//3}%")
+    c2.metric("Alertes 2026", "3 Actives")
+    c3.metric("Dossiers", len(st.session_state.vault))
 
-# --- PAGE 2 : MULTI-AGENTS (CONSEIL DE GUERRE) ---
-elif menu == "⚔️ Conseil de Guerre (Multi-Agents)":
-    st.markdown("<h2 style='color:#D4AF37; text-align:center;'>Le Conseil des Experts</h2>", unsafe_allow_html=True)
-    file = st.file_uploader("Soumettre le dossier au conseil", type=["pdf", "docx"])
+    # Graphique Radar
+    df = pd.DataFrame({"Critère": list(st.session_state.legal_scores.keys()), "Score": list(st.session_state.legal_scores.values())})
+    fig = px.line_polar(df, r='Score', theta='Critère', line_close=True)
+    fig.update_traces(fill='toself', line_color='#D4AF37')
+    fig.update_layout(paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", font_color="white")
+    st.plotly_chart(fig, use_container_width=True)
     
-    if st.button("LANCER LE DÉBAT JURIDIQUE"):
-        with st.spinner("Les agents débattent..."):
-            col_a, col_b, col_c = st.columns(3)
-            with col_a:
-                st.markdown('<div class="agent-box"><b>🛡️ L\'Avocat (Défense)</b><br>Je détecte 3 clauses limitant vos droits. Il faut les annuler.</div>', unsafe_allow_html=True)
-            with col_b:
-                st.markdown('<div class="agent-box"><b>🕵️ Le Procureur (Risques)</b><br>Attention à la clause 4.2, elle permet une rupture sans indemnité.</div>', unsafe_allow_html=True)
-            with col_c:
-                st.markdown('<div class="agent-box"><b>⚖️ Le Juge (Synthèse)</b><br>Le contrat est acceptable à 65% après révision de la clause de PI.</div>', unsafe_allow_html=True)
-        
-        # Ajout du Flowchart (Axe 2)
-        generate_flowchart_logic("Analyse")
-        
-
-# --- PAGE 3 : NÉGOCIATION (REDLINE) ---
-elif menu == "🤝 Négociation & Redline":
-    st.markdown("<h2 style='color:#D4AF37; text-align:center;'>Négociation Assistée</h2>", unsafe_allow_html=True)
-    ton = st.select_slider("Ton de la négociation", options=["Diplomate", "Standard", "Ferme", "Agressif"])
+elif mode == "🔬 Audit & Redline":
+    st.header("Audit & Négociation Assistée")
     
-    st.markdown("""
-    | Clause Originale | Correction Lex Nexus | Argument de Négociation |
-    | :--- | :--- | :--- |
-    | "Responsabilité nulle" | "Responsabilité limitée à 2x le prix" | "Conformité Art. 1231 Code Civil" |
-    """)
-    st.button("📧 Générer le mail de réponse")
+    file = st.file_uploader("Glisser le contrat ici", type=["pdf", "docx"])
+    
+    if file:
+        st.success(f"Document '{file.name}' chargé.")
+        # Simuler une analyse de Redline (Axe 4)
+        st.markdown("### 🤝 Propositions de Négociation")
+        col_a, col_b = st.columns(2)
+        with col_a:
+            st.error("**Clause Risquée** : Responsabilité illimitée.")
+        with col_b:
+            st.success("**Correction Lex Nexus** : Plafonnement à 150% du montant du contrat.")
+            
+    # Chat Interactif
+    for i, msg in enumerate(st.session_state.chat_history):
+        with st.chat_message(msg["role"]):
+            st.write(msg["content"])
 
-# --- PAGE 4 : COFFRE-FORT & CALENDRIER ---
-elif menu == "🗄️ Coffre-fort & Échéancier":
-    st.markdown("<h2 style='color:#D4AF37; text-align:center;'>Échéancier de Veille</h2>", unsafe_allow_html=True)
-    st.info("📅 Rappel : Renouvellement Contrat IT dans 12 jours.")
-    st.write("---")
-    if st.session_state.vault:
-        st.dataframe(pd.DataFrame(st.session_state.vault))
+    if p := st.chat_input("Une question sur le droit en 2026 ?"):
+        st.session_state.chat_history.append({"role": "user", "content": p})
+        with st.chat_message("assistant"):
+            response = client.chat.complete(model="pixtral-12b-2409", messages=[{"role": "user", "content": p}])
+            txt = response.choices[0].message.content
+            st.write(txt)
+            st.session_state.chat_history.append({"role": "assistant", "content": txt})
+
+elif mode == "⚔️ Conseil de Guerre":
+    st.header("Multi-Agent Simulation")
+    st.info("Ce module simule un arbitrage entre plusieurs experts juridiques.")
+    if st.button("Lancer la Simulation"):
+        st.markdown('<div class="legal-card">🕵️ **L\'Avocat (Défense)** : Le risque de nullité est élevé.</div>', unsafe_allow_html=True)
+        st.markdown('<div class="legal-card">⚖️ **Le Juge (Arbitre)** : Une médiation est recommandée sous 15 jours.</div>', unsafe_allow_html=True)
