@@ -1,143 +1,136 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-import plotly.graph_objects as go
 from datetime import datetime
 from mistralai import Mistral
+from pypdf import PdfReader
+from docx import Document
 
-# --- 1. CONFIGURATION & DESIGN ---
-st.set_page_config(page_title="Lex Nexus | Cockpit", page_icon="⚖️", layout="wide")
+# --- 1. CONFIGURATION ÉLÉGANTE ---
+st.set_page_config(page_title="Lex Nexus | Excellence 2026", page_icon="⚖️", layout="wide")
 
-# Forcer la date en 2026 pour l'IA
-DATE_SYSTEME = "28 Février 2026"
+# Date fixée pour l'immersion 2026
+DATE_COURANTE = "28 Février 2026"
 
 st.markdown(f"""
 <style>
-    /* Fond sombre et texte clair */
     .stApp {{ background-color: #0E1117; color: #E0E0E0; }}
     
-    /* Cacher les éléments inutiles de Streamlit */
-    [data-testid="stChatInput"] {{ display: none !important; }}
-    footer {{visibility: hidden;}}
-    
-    /* Style du Cockpit (Cartes) */
-    .metric-card {{
-        background: rgba(255, 255, 255, 0.05);
+    /* Design des cartes du Cockpit */
+    .metric-container {{
+        background: rgba(212, 175, 55, 0.05);
         border: 1px solid rgba(212, 175, 55, 0.3);
         padding: 20px;
         border-radius: 15px;
         text-align: center;
+        margin-bottom: 20px;
     }}
     
-    /* BARRE DE SAISIE FIXE EN BAS (Style Gemini) */
-    .fixed-input-container {{
-        position: fixed;
-        bottom: 20px;
-        left: 55%;
-        transform: translateX(-50%);
-        width: 70%;
-        background: #1A1D24;
-        border: 1px solid #D4AF37;
-        border-radius: 30px;
-        padding: 8px 20px;
-        display: flex;
-        align-items: center;
-        z-index: 9999;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    /* Sidebar Prestige */
+    section[data-testid="stSidebar"] {{
+        background-color: #111418 !important;
+        border-right: 1px solid #D4AF37;
     }}
 </style>
 """, unsafe_allow_html=True)
 
-# Initialisation des données
+# --- 2. INITIALISATION ---
 if "chat_history" not in st.session_state: st.session_state.chat_history = []
+if "mes_documents" not in st.session_state: st.session_state.mes_documents = []
 if "page" not in st.session_state: st.session_state.page = "📊 Cockpit"
 
 client = Mistral(api_key=st.secrets["MISTRAL_API_KEY"])
 
-# --- 2. SIDEBAR (NAVIGATION) ---
+# --- 3. BARRE DE NAVIGATION ---
 with st.sidebar:
     st.markdown("<h1 style='color:#D4AF37; text-align:center;'>LEX NEXUS</h1>", unsafe_allow_html=True)
-    st.info(f"📅 Date : {DATE_SYSTEME}")
+    st.markdown(f"<p style='text-align:center;'>📅 {DATE_COURANTE}</p>", unsafe_allow_html=True)
+    st.write("---")
     
-    # Boutons de navigation qui fonctionnent vraiment
     if st.button("📊 Cockpit Global", use_container_width=True):
         st.session_state.page = "📊 Cockpit"
         st.rerun()
-    if st.button("🔬 Audit & Vision", use_container_width=True):
+        
+    if st.button("🔬 Audit & Expertise", use_container_width=True):
         st.session_state.page = "🔬 Audit"
         st.rerun()
         
-    st.divider()
-    if st.button("✨ Reset"):
+    st.write("---")
+    if st.button("✨ Réinitialiser tout", type="primary", use_container_width=True):
         st.session_state.clear()
         st.rerun()
 
-# --- 3. PAGE : COCKPIT (ENFIN VISIBLE) ---
+# --- 4. PAGE : COCKPIT (RÉEL ET PROPRE) ---
 if st.session_state.page == "📊 Cockpit":
-    st.title("Cockpit Juridique Stratégique")
+    st.markdown("<h1 style='color:#D4AF37;'>Tableau de Bord Stratégique</h1>", unsafe_allow_html=True)
     
-    # KPIs en haut
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        st.markdown('<div class="metric-card"><h3>Santé Globale</h3><h2 style="color:#D4AF37;">84%</h2></div>', unsafe_allow_html=True)
-    with col2:
-        st.markdown('<div class="metric-card"><h3>Niveau de Risque</h3><h2 style="color:#FF4B4B;">Bas</h2></div>', unsafe_allow_html=True)
-    with col3:
-        st.markdown('<div class="metric-card"><h3>Dossiers Ouverts</h3><h2 style="color:#00FF00;">12</h2></div>', unsafe_allow_html=True)
+    # Statistiques RÉELLES
+    nb_docs = len(st.session_state.mes_documents)
+    nb_echanges = len(st.session_state.chat_history) // 2
+    
+    c1, c2, c3 = st.columns(3)
+    with c1:
+        st.markdown(f'<div class="metric-container"><p>Dossiers Analysés</p><h2>{nb_docs}</h2></div>', unsafe_allow_html=True)
+    with c2:
+        st.markdown(f'<div class="metric-container"><p>Requêtes IA</p><h2>{nb_echanges}</h2></div>', unsafe_allow_html=True)
+    with c3:
+        st.markdown(f'<div class="metric-container"><p>Statut Veille</p><h2 style="color:#00FF00;">Actif</h2></div>', unsafe_allow_html=True)
 
     st.write("---")
     
-    # Graphique Radar pour montrer que c'est du sérieux
-    left, right = st.columns([1.5, 1])
-    with left:
+    col_radar, col_news = st.columns([1.5, 1])
+    with col_radar:
+        st.subheader("⚖️ Analyse de Santé Juridique")
+        # Radar basé sur des data types
         df_radar = pd.DataFrame({
-            'Critère': ['Conformité', 'Social', 'Fiscal', 'PI', 'Contractuel'],
-            'Score': [80, 65, 90, 75, 85]
+            'Critère': ['Conformité', 'Social', 'Fiscal', 'PI', 'Risques'],
+            'Score': [85, 70, 90, 80, 75]
         })
         fig = px.line_polar(df_radar, r='Score', theta='Critère', line_close=True)
         fig.update_traces(fill='toself', line_color='#D4AF37')
-        fig.update_layout(paper_bgcolor="rgba(0,0,0,0)", font_color="white")
+        fig.update_layout(paper_bgcolor="rgba(0,0,0,0)", font_color="white", polar=dict(bgcolor="rgba(0,0,0,0)"))
         st.plotly_chart(fig, use_container_width=True)
-    
-    with right:
-        st.subheader("📢 Alertes 2026")
-        st.warning("Nouvelle directive IA Act : Mise à jour nécessaire sous 12 jours.")
-        st.info("Jurisprudence : Le secret des affaires renforcé par la cour d'appel.")
+                
+    with col_news:
+        st.subheader("📢 Veille 2026")
+        st.info("**IA Act** : Mise en conformité obligatoire avant juin.")
+        st.warning("**Cyber-sécurité** : Renforcement des amendes RGPD.")
 
-# --- 4. PAGE : AUDIT (AVEC BARRE GEMINI FIXE) ---
+# --- 5. PAGE : AUDIT & EXPERTISE (DESIGN GEMINI PUR) ---
 elif st.session_state.page == "🔬 Audit":
-    st.header("Analyse & Expertise IA")
+    st.markdown("<h1 style='color:#D4AF37;'>Analyse & Expertise IA</h1>", unsafe_allow_html=True)
     
-    # Zone de chat (on laisse de la place en bas pour la barre fixe)
-    chat_space = st.container()
-    with chat_space:
-        for msg in st.session_state.chat_history:
-            with st.chat_message(msg["role"]):
-                st.write(msg["content"])
-        st.write("<br><br><br><br><br><br>", unsafe_allow_html=True) # Espace pour ne pas cacher le dernier msg
+    # 1. Zone de dépôt de documents
+    with st.expander("📂 Télécharger les pièces du dossier (PDF, Images, Word)", expanded=True):
+        fichiers = st.file_uploader("Glissez vos documents ici", type=["pdf", "docx", "png", "jpg"], accept_multiple_files=True)
+        if fichiers:
+            st.session_state.mes_documents = [f.name for f in fichiers]
+            st.success(f"✅ {len(fichiers)} documents chargés au dossier.")
 
-    # BARRE DE SAISIE GEMINI
-    with st.form(key="chat_bar", clear_on_submit=True):
-        # On simule la barre stylée avec des colonnes Streamlit
-        c1, c2, c3, c4 = st.columns([0.5, 0.5, 8, 1])
-        c1.markdown("🖼️") # Photo
-        c2.markdown("📎") # Fichier
-        query = c3.text_input("", placeholder="Demandez n'importe quoi à Lex Nexus...", label_visibility="collapsed")
-        submit = c4.form_submit_button("✉️")
+    st.write("---")
 
-    if submit and query:
-        st.session_state.chat_history.append({"role": "user", "content": query})
-        
-        with st.chat_message("assistant"):
-            sys_prompt = f"Tu es Lex Nexus. Nous sommes le {DATE_SYSTEME}. Réponds en expert juridique de 2026."
-            res = client.chat.complete(
+    # 2. Historique de discussion
+    for msg in st.session_state.chat_history:
+        avatar = "⚖️" if msg["role"] == "assistant" else "👤"
+        with st.chat_message(msg["role"], avatar=avatar):
+            st.markdown(msg["content"])
+
+    # 3. Saisie Unique (Look Gemini)
+    if prompt := st.chat_input("Posez votre question juridique ou demandez un audit..."):
+        st.session_state.chat_history.append({"role": "user", "content": prompt})
+        with st.chat_message("user", avatar="👤"):
+            st.markdown(prompt)
+            
+        with st.chat_message("assistant", avatar="⚖️"):
+            # Simulation d'analyse IA avec contexte
+            context = f"Documents chargés : {', '.join(st.session_state.mes_documents)}"
+            system_msg = f"Tu es Lex Nexus. Date : {DATE_COURANTE}. Utilise ce contexte : {context}"
+            
+            response = client.chat.complete(
                 model="pixtral-12b-2409",
-                messages=[{"role": "system", "content": sys_prompt}, {"role": "user", "content": query}]
+                messages=[{"role": "system", "content": system_msg}, {"role": "user", "content": prompt}]
             )
-            reponse_ia = res.choices[0].message.content
-            st.write(reponse_ia)
-            st.session_state.chat_history.append({"role": "assistant", "content": reponse_ia})
+            reponse_texte = response.choices[0].message.content
+            st.markdown(reponse_texte)
+            st.session_state.chat_history.append({"role": "assistant", "content": reponse_texte})
             st.rerun()
-
-    # Uploader caché pour les fichiers
-    st.file_uploader("Upload", type=["pdf", "png", "jpg"], label_visibility="collapsed")
