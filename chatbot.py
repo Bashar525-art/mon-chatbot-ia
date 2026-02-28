@@ -6,12 +6,10 @@ from mistralai import Mistral
 from docx import Document
 from pypdf import PdfReader
 from io import BytesIO
+import base64
 
-# --- 1. CONFIGURATION & CORE ENGINE ---
-st.set_page_config(page_title="Lex Nexus OS | 2026 Edition", page_icon="⚖️", layout="wide")
-
-# FIX DATE : On définit la date de référence pour tout le système
-# On force l'année 2026 pour que l'IA ne divague plus
+# --- 1. CONFIGURATION & ENGINE ---
+st.set_page_config(page_title="Lex Nexus OS | Vision 2026", page_icon="⚖️", layout="wide")
 CURRENT_DATE_2026 = "28 Février 2026"
 
 st.markdown("""
@@ -27,64 +25,78 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# Initialisation
 if "chat_history" not in st.session_state: st.session_state.chat_history = []
-if "legal_scores" not in st.session_state: st.session_state.legal_scores = {"Conformité": 85, "Risque": 20, "PI": 90}
-
 client = Mistral(api_key=st.secrets["MISTRAL_API_KEY"])
 
-# --- 2. NAVIGATION ---
+# --- 2. FONCTIONS DE TRAITEMENT ---
+
+def process_file(file):
+    name = file.name.lower()
+    if name.endswith(".pdf"):
+        return "\n".join([p.extract_text() for p in PdfReader(file).pages if p.extract_text()])
+    elif name.endswith(".docx"):
+        return "\n".join([p.text for p in Document(file).paragraphs])
+    elif name.endswith((".png", ".jpg", ".jpeg")):
+        # On encode l'image en base64 pour l'envoyer à l'IA
+        return base64.b64encode(file.read()).decode('utf-8')
+    return file.read().decode()
+
+# --- 3. INTERFACE ---
 with st.sidebar:
     st.markdown(f"<h1 style='color:#D4AF37;'>LEX NEXUS 2026</h1>", unsafe_allow_html=True)
-    st.info(f"📅 Date Système : {CURRENT_DATE_2026}")
-    mode = st.selectbox("MODULE", ["📊 Cockpit", "🔬 Audit & Redline"])
-    st.divider()
-    if st.button("🔌 Reset System", use_container_width=True):
+    st.info(f"📅 Date : {CURRENT_DATE_2026}")
+    mode = st.selectbox("MODULE", ["📊 Cockpit", "🔬 Audit Vision & Texte"])
+    if st.button("🔌 Reset System"):
         st.session_state.clear()
         st.rerun()
 
-# --- 3. MODULES ---
-
 if mode == "📊 Cockpit":
     st.title("Tableau de Bord Stratégique")
-    
-    # Indicateurs
     c1, c2, c3 = st.columns(3)
-    c1.metric("Santé Juridique", "82%", "+2%")
-    c2.metric("Veille Active", "Lois 2026", "LIVE")
-    c3.metric("Analyse", "Optimale")
+    c1.metric("Santé Juridique", "88%", "+5%")
+    c2.metric("Analyse Vision", "Activée", "LIVE")
+    c3.metric("Dossiers", len(st.session_state.chat_history)//2)
 
-    # Radar Chart
-    df = pd.DataFrame({"Critère": list(st.session_state.legal_scores.keys()), "Score": list(st.session_state.legal_scores.values())})
-    fig = px.line_polar(df, r='Score', theta='Critère', line_close=True)
-    fig.update_traces(fill='toself', line_color='#D4AF37')
-    fig.update_layout(paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", font_color="white")
-    st.plotly_chart(fig, use_container_width=True)
+elif mode == "🔬 Audit Vision & Texte":
+    st.header("Analyse Multisensorielle")
     
+    # Ajout des formats d'image ici
+    uploaded_files = st.file_uploader("Déposez Contrats ou Photos (PDF, DOCX, PNG, JPG)", 
+                                     type=["pdf", "docx", "png", "jpg", "jpeg"], 
+                                     accept_multiple_files=True)
 
-elif mode == "🔬 Audit & Redline":
-    st.header("Analyse & Expertise 2026")
-    
-    # Historique de Chat
     for i, msg in enumerate(st.session_state.chat_history):
         with st.chat_message(msg["role"]):
             st.write(msg["content"])
 
-    if p := st.chat_input("Posez votre question (L'IA sait que nous sommes en 2026)"):
+    if p := st.chat_input("Analysez ces pièces..."):
         st.session_state.chat_history.append({"role": "user", "content": p})
         with st.chat_message("user"): st.write(p)
         
         with st.chat_message("assistant"):
-            # INJECTION CRUCIALE DE LA DATE DANS LE PROMPT
-            system_prompt = f"Tu es Lex Nexus. Nous sommes le {CURRENT_DATE_2026}. Tu es un expert en droit du futur. Ignore tes données de 2024, base-toi sur les régulations de 2026 (IA Act, RGPD 3.0, etc.)."
+            placeholder = st.empty()
+            messages = [
+                {"role": "system", "content": f"Tu es Lex Nexus. Nous sommes le {CURRENT_DATE_2026}. Tu peux analyser du texte et des images."},
+                {"role": "user", "content": []}
+            ]
             
-            response = client.chat.complete(
-                model="pixtral-12b-2409", 
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": p}
-                ]
-            )
+            # Construction du message avec contenu mixte (Texte + Images)
+            content_list = [{"type": "text", "text": p}]
+            
+            if uploaded_files:
+                for f in uploaded_files:
+                    processed = process_file(f)
+                    if f.name.lower().endswith((".png", ".jpg", ".jpeg")):
+                        content_list.append({
+                            "type": "image_url",
+                            "image_url": f"data:image/jpeg;base64,{processed}"
+                        })
+                    else:
+                        content_list[0]["text"] += f"\n\nCONTENU DU FICHIER {f.name}:\n{processed}"
+            
+            messages[1]["content"] = content_list
+            
+            response = client.chat.complete(model="pixtral-12b-2409", messages=messages)
             txt = response.choices[0].message.content
             st.write(txt)
             st.session_state.chat_history.append({"role": "assistant", "content": txt})
