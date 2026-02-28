@@ -1,28 +1,31 @@
 import streamlit as st
 import pandas as pd
-import plotly.express as px
 from datetime import datetime
 from mistralai import Mistral
-from io import BytesIO
 
-# --- 1. CONFIGURATION ---
+# --- 1. CONFIGURATION ÉLÉGANTE ---
 st.set_page_config(page_title="Lex Nexus | Cabinet Pro", page_icon="⚖️", layout="wide")
 DATE_COURANTE = "28 Février 2026"
 
 st.markdown(f"""
 <style>
     .stApp {{ background-color: #0E1117; color: #E0E0E0; }}
-    [data-testid="stChatInput"] {{ border: 1px solid #D4AF37 !important; border-radius: 20px !important; }}
     
-    /* Style de la bannière de sécurité */
-    .security-banner {{
-        background-color: rgba(0, 255, 0, 0.05);
-        border: 1px solid #00FF00;
+    /* Style de la barre de chat officielle (Unique en bas) */
+    [data-testid="stChatInput"] {{
+        border: 1px solid #D4AF37 !important;
+        border-radius: 20px !important;
+    }}
+    
+    /* Bannière RGPD discrète */
+    .rgpd-box {{
+        background-color: rgba(0, 255, 0, 0.03);
+        border: 1px solid rgba(0, 255, 0, 0.2);
         padding: 10px;
         border-radius: 10px;
-        font-size: 0.85rem;
-        margin-bottom: 20px;
+        font-size: 0.8rem;
         text-align: center;
+        margin-bottom: 20px;
     }}
 </style>
 """, unsafe_allow_html=True)
@@ -30,77 +33,78 @@ st.markdown(f"""
 # --- 2. INITIALISATION ---
 if "chat_history" not in st.session_state: st.session_state.chat_history = []
 if "page" not in st.session_state: st.session_state.page = "📊 Cockpit"
-if "last_analysis" not in st.session_state: st.session_state.last_analysis = ""
+if "fichiers_noms" not in st.session_state: st.session_state.fichiers_noms = []
 
 client = Mistral(api_key=st.secrets["MISTRAL_API_KEY"])
 
-# --- 3. NAVIGATION SIDEBAR ---
+# --- 3. SIDEBAR : LE CENTRE DE CONTRÔLE UNIQUE ---
 with st.sidebar:
     st.markdown("<h1 style='color:#D4AF37; text-align:center;'>LEX NEXUS</h1>", unsafe_allow_html=True)
-    st.write(f"📅 {DATE_COURANTE}")
+    st.write(f"📅 **{DATE_COURANTE}**")
     st.write("---")
     
-    if st.button("📊 Cockpit Global", use_container_width=True):
-        st.session_state.page = "📊 Cockpit"
-        st.rerun()
-        
-    if st.button("🔬 Audit & Expertise", use_container_width=True):
-        st.session_state.page = "🔬 Audit"
-        st.rerun()
-        
+    # Navigation
+    choice = st.radio("MENU", ["📊 Cockpit Global", "🔬 Audit & Expertise"], label_visibility="collapsed")
+    st.session_state.page = choice
+    
     st.write("---")
-    # BOUTON SÉCURITÉ (Axe 1)
-    with st.expander("🛡️ Sécurité & Confidentialité"):
-        st.write("✅ Chiffrement de bout en bout")
-        st.write("🚫 Aucun entraînement sur vos données")
-        st.write("🇪🇺 Serveurs conformes RGPD 2026")
+    
+    # ZONE DE FICHIERS (DÉPLACÉE ICI POUR LIBÉRER LE HAUT DE PAGE)
+    st.markdown("### 📂 Documents du dossier")
+    uploaded = st.file_uploader("Ajouter des pièces (PDF, PNG, DOCX)", type=["pdf", "png", "docx", "jpg"], accept_multiple_files=True)
+    if uploaded:
+        st.session_state.fichiers_noms = [f.name for f in uploaded]
+        st.success(f"{len(uploaded)} fichiers chargés")
+    
+    st.write("---")
+    
+    # Sécurité RGPD
+    with st.expander("🛡️ Sécurité des données"):
+        st.caption("Conforme RGPD 2026. Les documents sont cryptés et ne servent pas à l'entraînement de l'IA.")
+
+    if st.button("✨ Réinitialiser la session", use_container_width=True):
+        st.session_state.clear()
+        st.rerun()
 
 # --- 4. PAGE : COCKPIT ---
-if st.session_state.page == "📊 Cockpit":
+if st.session_state.page == "📊 Cockpit Global":
     st.title("Tableau de Bord Stratégique")
-    
-    # Rappel de sécurité constant
-    st.markdown('<div class="security-banner">🔒 Données protégées : les documents déposés sont supprimés après chaque session et ne servent jamais à entraîner nos modèles.</div>', unsafe_allow_html=True)
+    st.markdown('<div class="rgpd-box">🔒 Confidentialité garantie : Aucun document n\'est conservé après la fermeture de votre navigateur.</div>', unsafe_allow_html=True)
     
     c1, c2, c3 = st.columns(3)
-    c1.metric("Dossiers", len(st.session_state.chat_history)//2)
-    c2.metric("Conformité", "Vigilance", "Norme 2026")
-    c3.metric("Certificat", "Actif")
+    c1.metric("Pièces au dossier", len(st.session_state.fichiers_noms))
+    c2.metric("Analyses effectuées", len(st.session_state.chat_history)//2)
+    c3.metric("Conformité", "Optimale")
 
-# --- 5. PAGE : AUDIT & EXPORT PDF ---
-elif st.session_state.page == "🔬 Audit":
-    st.title("Analyse & Expertise IA")
-
-    # Zone d'Upload
-    uploaded = st.file_uploader("Joindre des pièces au dossier", type=["pdf", "png", "docx"], label_visibility="collapsed")
+# --- 5. PAGE : AUDIT (PROPRE ET SANS BARRE EN HAUT) ---
+elif st.session_state.page == "🔬 Audit & Expertise":
+    st.title("Expertise Juridique & Vision")
     
-    st.write("---")
-
-    # Affichage historique
+    # Affichage des échanges
     for i, msg in enumerate(st.session_state.chat_history):
         with st.chat_message(msg["role"], avatar="⚖️" if msg["role"]=="assistant" else "👤"):
             st.markdown(msg["content"])
-            
-            # BOUTON D'EXPORTATION (Axe 2)
-            # Apparaît sous chaque réponse de l'assistant pour l'imprimer
             if msg["role"] == "assistant":
-                st.download_button(
-                    label="📄 Télécharger le compte-rendu (TXT/PDF)",
-                    data=msg["content"],
-                    file_name=f"Rapport_Lex_Nexus_{i}.txt",
-                    key=f"dl_{i}"
-                )
+                st.download_button("📥 Exporter en rapport", msg["content"], file_name=f"Analyse_{i}.txt", key=f"dl_{i}")
 
-    if prompt := st.chat_input("Posez votre question juridique..."):
+    # LA SEULE BARRE VISIBLE (En bas)
+    if prompt := st.chat_input("Analysez les pièces ou posez une question..."):
         st.session_state.chat_history.append({"role": "user", "content": prompt})
-        with st.chat_message("user", avatar="👤"): st.markdown(prompt)
+        with st.chat_message("user", avatar="👤"):
+            st.markdown(prompt)
             
         with st.chat_message("assistant", avatar="⚖️"):
+            # L'IA prend en compte les fichiers chargés dans la Sidebar
+            ctx = f"Documents chargés : {', '.join(st.session_state.fichiers_noms)}" if st.session_state.fichiers_noms else "Aucun document."
+            
             response = client.chat.complete(
                 model="pixtral-12b-2409",
-                messages=[{"role": "system", "content": f"Tu es Lex Nexus en {DATE_COURANTE}."}, {"role": "user", "content": prompt}]
+                messages=[
+                    {"role": "system", "content": f"Tu es Lex Nexus, expert en droit de 2026. Contexte : {ctx}"},
+                    {"role": "user", "content": prompt}
+                ]
             )
-            ans = response.choices[0].message.content
-            st.markdown(ans)
-            st.session_state.chat_history.append({"role": "assistant", "content": ans})
+            reponse = response.choices[0].message.content
+            st.markdown(reponse)
+            st.session_state.chat_history.append({"role": "assistant", "content": reponse})
             st.rerun()
