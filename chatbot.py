@@ -3,134 +3,108 @@ import pandas as pd
 import plotly.express as px
 from datetime import datetime
 from mistralai import Mistral
-from pypdf import PdfReader
-from docx import Document
 
-# --- 1. CONFIGURATION ÉLÉGANTE ---
+# --- 1. CONFIGURATION ---
 st.set_page_config(page_title="Lex Nexus | Excellence 2026", page_icon="⚖️", layout="wide")
-
-# Date fixée pour l'immersion 2026
 DATE_COURANTE = "28 Février 2026"
 
 st.markdown(f"""
 <style>
     .stApp {{ background-color: #0E1117; color: #E0E0E0; }}
-    
-    /* Design des cartes du Cockpit */
+    /* On stylise la barre de chat officielle pour qu'elle soit dorée */
+    [data-testid="stChatInput"] {{
+        border: 1px solid #D4AF37 !important;
+        border-radius: 20px !important;
+    }}
     .metric-container {{
         background: rgba(212, 175, 55, 0.05);
         border: 1px solid rgba(212, 175, 55, 0.3);
         padding: 20px;
         border-radius: 15px;
         text-align: center;
-        margin-bottom: 20px;
-    }}
-    
-    /* Sidebar Prestige */
-    section[data-testid="stSidebar"] {{
-        background-color: #111418 !important;
-        border-right: 1px solid #D4AF37;
     }}
 </style>
 """, unsafe_allow_html=True)
 
 # --- 2. INITIALISATION ---
 if "chat_history" not in st.session_state: st.session_state.chat_history = []
-if "mes_documents" not in st.session_state: st.session_state.mes_documents = []
 if "page" not in st.session_state: st.session_state.page = "📊 Cockpit"
+if "fichiers_charges" not in st.session_state: st.session_state.fichiers_charges = []
 
 client = Mistral(api_key=st.secrets["MISTRAL_API_KEY"])
 
-# --- 3. BARRE DE NAVIGATION ---
+# --- 3. SIDEBAR : TOUS LES OUTILS AU MÊME ENDROIT ---
 with st.sidebar:
     st.markdown("<h1 style='color:#D4AF37; text-align:center;'>LEX NEXUS</h1>", unsafe_allow_html=True)
     st.markdown(f"<p style='text-align:center;'>📅 {DATE_COURANTE}</p>", unsafe_allow_html=True)
-    st.write("---")
     
-    if st.button("📊 Cockpit Global", use_container_width=True):
-        st.session_state.page = "📊 Cockpit"
-        st.rerun()
-        
-    if st.button("🔬 Audit & Expertise", use_container_width=True):
-        st.session_state.page = "🔬 Audit"
-        st.rerun()
-        
+    st.write("---")
+    # Menu de Navigation
+    nav = st.radio("Navigation", ["📊 Cockpit Global", "🔬 Audit & Expertise"], label_visibility="collapsed")
+    st.session_state.page = nav
+
+    st.write("---")
+    # ZONE DE FICHIERS DÉPLACÉE ICI POUR ÉVITER LES DOUBLES BARRES
+    st.markdown("### 📂 Gestion des documents")
+    uploaded = st.file_uploader("Ajouter des pièces au dossier", type=["pdf", "docx", "png", "jpg"], accept_multiple_files=True)
+    if uploaded:
+        st.session_state.fichiers_charges = [f.name for f in uploaded]
+        st.success(f"{len(uploaded)} fichiers prêts.")
+
     st.write("---")
     if st.button("✨ Réinitialiser tout", type="primary", use_container_width=True):
         st.session_state.clear()
         st.rerun()
 
-# --- 4. PAGE : COCKPIT (RÉEL ET PROPRE) ---
-if st.session_state.page == "📊 Cockpit":
+# --- 4. PAGE : COCKPIT ---
+if st.session_state.page == "📊 Cockpit Global":
     st.markdown("<h1 style='color:#D4AF37;'>Tableau de Bord Stratégique</h1>", unsafe_allow_html=True)
-    
-    # Statistiques RÉELLES
-    nb_docs = len(st.session_state.mes_documents)
-    nb_echanges = len(st.session_state.chat_history) // 2
     
     c1, c2, c3 = st.columns(3)
     with c1:
-        st.markdown(f'<div class="metric-container"><p>Dossiers Analysés</p><h2>{nb_docs}</h2></div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="metric-container"><p>Documents au dossier</p><h2>{len(st.session_state.fichiers_charges)}</h2></div>', unsafe_allow_html=True)
     with c2:
-        st.markdown(f'<div class="metric-container"><p>Requêtes IA</p><h2>{nb_echanges}</h2></div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="metric-container"><p>Requêtes IA</p><h2>{len(st.session_state.chat_history)//2}</h2></div>', unsafe_allow_html=True)
     with c3:
-        st.markdown(f'<div class="metric-container"><p>Statut Veille</p><h2 style="color:#00FF00;">Actif</h2></div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="metric-container"><p>Statut</p><h2 style="color:#00FF00;">Opérationnel</h2></div>', unsafe_allow_html=True)
 
-    st.write("---")
-    
-    col_radar, col_news = st.columns([1.5, 1])
-    with col_radar:
-        st.subheader("⚖️ Analyse de Santé Juridique")
-        # Radar basé sur des data types
-        df_radar = pd.DataFrame({
-            'Critère': ['Conformité', 'Social', 'Fiscal', 'PI', 'Risques'],
-            'Score': [85, 70, 90, 80, 75]
-        })
-        fig = px.line_polar(df_radar, r='Score', theta='Critère', line_close=True)
-        fig.update_traces(fill='toself', line_color='#D4AF37')
-        fig.update_layout(paper_bgcolor="rgba(0,0,0,0)", font_color="white", polar=dict(bgcolor="rgba(0,0,0,0)"))
-        st.plotly_chart(fig, use_container_width=True)
-                
-    with col_news:
-        st.subheader("📢 Veille 2026")
-        st.info("**IA Act** : Mise en conformité obligatoire avant juin.")
-        st.warning("**Cyber-sécurité** : Renforcement des amendes RGPD.")
+    # Graphique Radar
+    df_radar = pd.DataFrame({
+        'Critère': ['Conformité', 'Social', 'Fiscal', 'PI', 'Risques'],
+        'Score': [85, 70, 90, 80, 75]
+    })
+    fig = px.line_polar(df_radar, r='Score', theta='Critère', line_close=True)
+    fig.update_traces(fill='toself', line_color='#D4AF37')
+    fig.update_layout(paper_bgcolor="rgba(0,0,0,0)", font_color="white", polar=dict(bgcolor="rgba(0,0,0,0)"))
+    st.plotly_chart(fig, use_container_width=True)
 
-# --- 5. PAGE : AUDIT & EXPERTISE (DESIGN GEMINI PUR) ---
-elif st.session_state.page == "🔬 Audit":
+# --- 5. PAGE : AUDIT (UNE SEULE BARRE EN BAS) ---
+elif st.session_state.page == "🔬 Audit & Expertise":
     st.markdown("<h1 style='color:#D4AF37;'>Analyse & Expertise IA</h1>", unsafe_allow_html=True)
     
-    # 1. Zone de dépôt de documents
-    with st.expander("📂 Télécharger les pièces du dossier (PDF, Images, Word)", expanded=True):
-        fichiers = st.file_uploader("Glissez vos documents ici", type=["pdf", "docx", "png", "jpg"], accept_multiple_files=True)
-        if fichiers:
-            st.session_state.mes_documents = [f.name for f in fichiers]
-            st.success(f"✅ {len(fichiers)} documents chargés au dossier.")
-
-    st.write("---")
-
-    # 2. Historique de discussion
+    # Historique propre
     for msg in st.session_state.chat_history:
-        avatar = "⚖️" if msg["role"] == "assistant" else "👤"
-        with st.chat_message(msg["role"], avatar=avatar):
+        with st.chat_message(msg["role"], avatar="⚖️" if msg["role"] == "assistant" else "👤"):
             st.markdown(msg["content"])
 
-    # 3. Saisie Unique (Look Gemini)
-    if prompt := st.chat_input("Posez votre question juridique ou demandez un audit..."):
+    # LA SEULE ET UNIQUE BARRE (st.chat_input est toujours en bas de page)
+    if prompt := st.chat_input("Posez votre question juridique ici..."):
         st.session_state.chat_history.append({"role": "user", "content": prompt})
         with st.chat_message("user", avatar="👤"):
             st.markdown(prompt)
             
         with st.chat_message("assistant", avatar="⚖️"):
-            # Simulation d'analyse IA avec contexte
-            context = f"Documents chargés : {', '.join(st.session_state.mes_documents)}"
-            system_msg = f"Tu es Lex Nexus. Date : {DATE_COURANTE}. Utilise ce contexte : {context}"
+            # L'IA prend en compte les fichiers chargés dans la sidebar
+            context = f"Fichiers : {', '.join(st.session_state.fichiers_charges)}" if st.session_state.fichiers_charges else "Aucun fichier."
             
             response = client.chat.complete(
                 model="pixtral-12b-2409",
-                messages=[{"role": "system", "content": system_msg}, {"role": "user", "content": prompt}]
+                messages=[
+                    {"role": "system", "content": f"Tu es Lex Nexus. Date : {DATE_COURANTE}. Contexte : {context}"},
+                    {"role": "user", "content": prompt}
+                ]
             )
-            reponse_texte = response.choices[0].message.content
-            st.markdown(reponse_texte)
-            st.session_state.chat_history.append({"role": "assistant", "content": reponse_texte})
+            ans = response.choices[0].message.content
+            st.markdown(ans)
+            st.session_state.chat_history.append({"role": "assistant", "content": ans})
             st.rerun()
