@@ -36,7 +36,6 @@ st.markdown(r"""
         margin-bottom: 20px;
     }
 
-    /* Optimisation Zone Drag & Drop */
     [data-testid="stFileUploadDropzone"] {
         border: 2px dashed #D4AF37 !important;
         background: rgba(212, 175, 55, 0.05) !important;
@@ -58,7 +57,6 @@ if "chat_history" not in st.session_state:
 # --- 3. FONCTIONS TECHNIQUES ---
 
 def read_file_content(file):
-    """Lecture Multi-format : PDF, DOCX, TXT"""
     name = file.name.lower()
     try:
         if name.endswith(".pdf"):
@@ -73,7 +71,6 @@ def read_file_content(file):
     return ""
 
 def generate_docx(content):
-    """Générateur d'actes Word avec formatage professionnel"""
     doc = Document()
     doc.add_heading('LEX NEXUS - VERSION SÉCURISÉE 2026', 0)
     doc.add_paragraph(f"Date de génération : {datetime.now().strftime('%d/%m/%Y')}")
@@ -84,7 +81,6 @@ def generate_docx(content):
     return bio.getvalue()
 
 def plot_risk_radar():
-    """Graphique Radar (Indice de Santé)"""
     df = pd.DataFrame({
         "Critère": list(st.session_state.legal_scores.keys()),
         "Score": list(st.session_state.legal_scores.values())
@@ -134,20 +130,21 @@ if menu == "🏛️ Dashboard":
 elif menu == "🔬 Audit & Rédaction":
     st.markdown("<h2 style='text-align:center; color:#D4AF37;'>Expertise & Réécriture Automatique</h2>", unsafe_allow_html=True)
     
-    # Zone de téléchargement Drag & Drop
     files = st.file_uploader("📂 Glissez-déposez vos fichiers ici (PDF, DOCX, TXT)", type=["pdf", "docx", "txt"], accept_multiple_files=True)
     
-    # Affichage de l'historique avec bouton de téléchargement intelligent
-    for msg in st.session_state.chat_history:
+    # --- CORRECTION DE L'ERREUR ICI ---
+    # On utilise enumerate pour avoir un index 'i' unique pour chaque message
+    for i, msg in enumerate(st.session_state.chat_history):
         with st.chat_message(msg["role"], avatar="⚖️" if msg["role"]=="assistant" else "👤"):
             st.markdown(msg["content"])
             if msg["role"] == "assistant":
-                # Le bouton apparaît sous chaque réponse de l'IA pour exporter le contrat réécrit
+                # On ajoute key=f"dl_{i}" pour que chaque bouton soit unique
                 st.download_button(
                     label="📥 Télécharger l'acte SÉCURISÉ (.docx)",
                     data=generate_docx(msg["content"]),
-                    file_name=f"LexNexus_Securise_{datetime.now().strftime('%H%M')}.docx",
-                    mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                    file_name=f"LexNexus_Securise_{datetime.now().strftime('%H%M')}_{i}.docx",
+                    mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                    key=f"dl_{i}"
                 )
 
     if prompt := st.chat_input("Analysez ce contrat ou demandez une réécriture..."):
@@ -159,7 +156,6 @@ elif menu == "🔬 Audit & Rédaction":
             if files:
                 for f in files: context += f"\n--- {f.name} ---\n{read_file_content(f)}\n"
             
-            # Consigne système renforcée pour la réécriture et l'expertise 2026
             sys_prompt = (
                 f"Tu es Lex Nexus, une IA juridique d'élite. Nous sommes le {datetime.now().strftime('%d/%m/%Y')}. "
                 "Ta mission : Analyser les risques juridiques et REECRIRE systématiquement les clauses "
@@ -182,7 +178,6 @@ elif menu == "🔬 Audit & Rédaction":
             placeholder.markdown(full_res)
             st.session_state.chat_history.append({"role": "assistant", "content": full_res})
             
-            # Logique dynamique : Amélioration visuelle des scores après audit
             for k in st.session_state.legal_scores:
                 st.session_state.legal_scores[k] = min(100, st.session_state.legal_scores[k] + 4)
             
